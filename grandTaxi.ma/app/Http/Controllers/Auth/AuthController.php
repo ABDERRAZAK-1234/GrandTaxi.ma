@@ -18,7 +18,7 @@ class AuthController extends Controller
         'nom' => 'required|string',
         'prenom' => 'required|string',
         'email' => 'required|email|unique:users',
-        'password' => 'required|min:6',
+        'password' => 'required|min:6|confirmed',
     ]);
 
     // first user take role admin
