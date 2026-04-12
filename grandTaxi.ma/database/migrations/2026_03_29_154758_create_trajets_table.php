@@ -12,12 +12,10 @@ return new class extends Migration {
     {
         Schema::create('trajets', function (Blueprint $table) {
             $table->id();
-            $table->string('ville_depart');
-            $table->string('ville_arrive');
-            $table->dateTime('date_depart');
-            $table->float('prix');
-            $table->enum('statuts', ['ouvert', 'complet', 'termine']);
-            $table->foreignId('taxi_id')->constrained('taxis');
+            $table->foreignId('ville_depart_id')->constrained('villes')->onDelete('cascade');
+            $table->foreignId('ville_arrivee_id')->constrained('villes')->onDelete('cascade');
+            $table->decimal('prix', 8, 2);
+            $table->enum('statut', ['actif', 'cloture'])->default('actif');
             $table->timestamps();
         });
     }
