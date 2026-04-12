@@ -26,8 +26,8 @@ class Trajet extends Model
     }
 
     // les taxi de ce trajet
-    // public function taxi()
-    // {
-    //     return $this->belongsTo(Taxi::class, 'taxi_id');
-    // }
+    public function taxis()
+    {
+        return $this->hasMany(Taxi::class);
+    }
 }

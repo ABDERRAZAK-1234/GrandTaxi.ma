@@ -7,11 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 
 class Taxi extends Model
 {
-    protected $fillable = ['matricule', 'capacite', 'status', 'driver_id'];
+    protected $fillable = [
+        'matricule',
+        'capacite',
+        'statuts',
+        'driver_id',
+        'trajet_id',
+    ];
 
-    public function chauffeur()
+    public function driver()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    public function trajet()
+    {
+        return $this->belongsTo(Trajet::class, 'trajet_id');
     }
 }
 
