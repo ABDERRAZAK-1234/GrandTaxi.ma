@@ -47,23 +47,20 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // Validate incoming request
+
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        // Check user credentials
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Identifiants invalides'], 401);
         }
 
-        // Generate API token
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Return response
         return response()->json([
             'message' => 'Utilisateur authentifié avec succès',
             'user' => $user,
@@ -77,10 +74,8 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        // Delete current access token
         $request->user()->currentAccessToken()->delete();
 
-        // Return response
         return response()->json([
             'message' => 'Utilisateur déconnecté avec succès'
         ]);
