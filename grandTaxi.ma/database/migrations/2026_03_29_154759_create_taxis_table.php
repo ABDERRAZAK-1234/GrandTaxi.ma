@@ -16,6 +16,7 @@ return new class extends Migration {
             $table->integer('capacite');
             $table->enum('statuts', ['available', 'reserved', 'full', 'unavailable']);
             $table->foreignId('driver_id')->constrained('users');
+            $table->foreignId('trajet_id')->constrained('trajets')->onDelete('cascade');
             $table->timestamps();
         });
     }
