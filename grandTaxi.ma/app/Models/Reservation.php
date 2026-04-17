@@ -6,5 +6,33 @@ use Illuminate\Database\Eloquent\Model;
 
 class Reservation extends Model
 {
-    //
+    protected $fillable = [
+        'nombre_place',
+        'bagage',
+        'nombre_bagage',
+        'prix_total',
+        'statut',
+        'user_id',
+        'trajet_id',
+        'taxi_id',
+    ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function taxi()
+    {
+        return $this->belongsTo(Taxi::class);
+    }
+
+    public function trajet()
+    {
+        return $this->belongsTo(Trajet::class);
+    }
+
+
+
+
 }

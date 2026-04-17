@@ -24,6 +24,11 @@ class Taxi extends Model
     {
         return $this->belongsTo(Trajet::class, 'trajet_id');
     }
+
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class);
+    }
 }
 
 
