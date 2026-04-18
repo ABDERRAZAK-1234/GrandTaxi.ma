@@ -32,6 +32,11 @@ class Reservation extends Model
         return $this->belongsTo(Trajet::class);
     }
 
+    public function paiement()
+    {
+        return $this->hasOne(Paiement::class);
+    }
+
 
 
 
