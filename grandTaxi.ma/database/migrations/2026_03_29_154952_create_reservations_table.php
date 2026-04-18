@@ -14,9 +14,11 @@ return new class extends Migration {
             $table->id();
             $table->integer('nombre_place');
             $table->boolean('bagage');
-            $table->enum('statut', ['ouvert', 'complet', 'termine']);
+            $table->decimal('prix_total', 8, 2);
+            $table->enum('statut', ['ouvert', 'complet', 'termine'])->default('ouvert');
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('trajet_id')->constrained('trajets');
+            $table->foreignId('taxi_id')->constrained('taxis');
             $table->timestamps();
         });
     }
