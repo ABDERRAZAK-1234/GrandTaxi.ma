@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Taxi;
+use App\Models\Trajet;
+use Illuminate\Http\Request;
 
 class TaxiController extends Controller
 {
@@ -62,6 +63,25 @@ class TaxiController extends Controller
     {
         $taxi->delete();
         return response()->json(['message' => 'Taxi supprimé avec succès']);
+    }
+
+    // taxis avec les taxi de ce trajet
+    public function parTrajet(Trajet $trajet)
+    {
+        $taxis = Taxi::where('trajet_id', $trajet->id)
+            ->where('statuts', 'available')
+            ->withCount([
+                'reservations as places_reservees' => function ($query) {
+                    $query->where('statut', 'confirmed');
+                }
+            ])
+            ->get()
+            ->map(function ($taxi) {
+                $taxi->places_restantes = $taxi->capacite - $taxi->places_reservees;
+                return $taxi;
+            });
+
+        return response()->json($taxis);
     }
 
 }
