@@ -8,6 +8,7 @@ class Reservation extends Model
 {
     protected $fillable = [
         'nombre_place',
+        'sieges',
         'bagage',
         'nombre_bagage',
         'prix_total',
@@ -15,6 +16,10 @@ class Reservation extends Model
         'user_id',
         'trajet_id',
         'taxi_id',
+    ];
+    protected $casts = [
+        'sieges' => 'array',
+        'bagage' => 'boolean',
     ];
 
     public function user()
