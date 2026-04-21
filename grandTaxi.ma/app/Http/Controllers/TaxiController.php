@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Reservation;
 use App\Models\Taxi;
 use App\Models\Trajet;
 use Illuminate\Http\Request;
@@ -69,19 +70,43 @@ class TaxiController extends Controller
     public function parTrajet(Trajet $trajet)
     {
         $taxis = Taxi::where('trajet_id', $trajet->id)
-            ->where('statuts', 'available')
-            ->withCount([
-                'reservations as places_reservees' => function ($query) {
-                    $query->where('statut', 'confirmed');
-                }
-            ])
+            ->whereIn('statuts', ['available', 'reserved'])
             ->get()
             ->map(function ($taxi) {
-                $taxi->places_restantes = $taxi->capacite - $taxi->places_reservees;
+                // sum des places reservées (pas count des reservations)
+                $placesReservees = Reservation::where('taxi_id', $taxi->id)
+                    ->where('statut', 'confirmed')
+                    ->sum('nombre_place');
+
+                $taxi->places_reservees = $placesReservees;
+                $taxi->places_restantes = $taxi->capacite - $placesReservees;
                 return $taxi;
             });
 
         return response()->json($taxis);
+    }
+
+    // sieges occupes
+    public function siegesOccupes(Taxi $taxi)
+    {
+        $siegesOccupes = Reservation::where('taxi_id', $taxi->id)
+            ->where('statut', 'confirmed')
+            ->whereNotNull('sieges')
+            ->get()
+            ->pluck('sieges')
+            ->map(function ($siege) {
+                // Parser si c'est un string JSON
+                $parsed = is_string($siege) ? json_decode($siege, true) : $siege;
+                return $parsed;
+            })
+            ->flatten()
+            ->map(fn($s) => (int) $s)
+            ->unique()
+            ->values();
+
+        return response()->json([
+            'sieges_occupes' => $siegesOccupes
+        ]);
     }
 
 }
