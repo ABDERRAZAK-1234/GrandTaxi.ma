@@ -31,7 +31,10 @@ class ReservationController extends Controller
             'nombre_place' => 'required|integer|min:1',
             'bagage' => 'required|boolean',
             'nombre_bagage' => 'required_if:bagage,true|integer|min:0|max:2',
+            'sieges' => 'required|array|min:1',
+            'sieges.*' => 'integer|min:1|max:6',
         ]);
+        $siegesNums = $request->sieges;
 
         $trajet = Trajet::findOrFail($request->trajet_id);
 
@@ -61,6 +64,7 @@ class ReservationController extends Controller
         $nombreBagage = $request->bagage ? ($request->nombre_bagage ?? 0) : 0;
         $prixTotal = ($trajet->prix * $request->nombre_place) + (10 * $nombreBagage);
 
+
         // *********Crer Paiement avec Stripe**************
         Stripe::setApiKey(config('services.stripe.secret'));
 
@@ -71,7 +75,8 @@ class ReservationController extends Controller
                 'trajet_id' => $request->trajet_id,
                 'taxi_id' => $request->taxi_id,
                 'user_id' => $request->user()->id,
-                'nombre_place' => $request->nombre_place,
+                'sieges' => json_encode($siegesNums),
+                'nombre_place' => count($siegesNums),
                 'bagage' => $request->bagage ? '1' : '0',
                 'nombre_bagage' => $nombreBagage,
             ],
@@ -116,6 +121,7 @@ class ReservationController extends Controller
             'taxi_id' => $meta->taxi_id,
             'user_id' => $meta->user_id,
             'nombre_place' => $meta->nombre_place,
+            'sieges' => json_decode($meta->sieges),
             'bagage' => $meta->bagage === '1',
             'nombre_bagage' => $meta->nombre_bagage,
             'prix_total' => $paymentIntent->amount / 100,
@@ -132,7 +138,7 @@ class ReservationController extends Controller
             'stripe_client_secret' => $paymentIntent->client_secret,
         ]);
 
-        broadcast(new ReservationCreated($reservation))->toOthers();
+        broadcast(new ReservationCreated($reservation));
 
         // Mettre à jour statut taxi si complet
         $taxi = Taxi::find($meta->taxi_id);
@@ -150,6 +156,7 @@ class ReservationController extends Controller
             'message' => 'Réservation confirmée avec succès',
             'reservation' => $reservation,
             'paiement' => $paiement,
+            'billet_url' => "/api/reservations/{$reservation->id}/billet",
         ], 201);
     }
 
