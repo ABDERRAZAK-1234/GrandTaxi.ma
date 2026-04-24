@@ -39,8 +39,8 @@ class VilleController extends Controller
         return response()->json([
             'message' => 'Ville mise à jour avec succès',
             'data' => $ville
-        ], 200);
-    }
+            ], 200);
+            }
 
     // supp ville
     public function destroy(Ville $ville)
