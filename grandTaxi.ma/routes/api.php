@@ -1,12 +1,14 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\BilletController;
+use App\Http\Controllers\ReservationController;
+use App\Http\Controllers\TaxiController;
+use App\Http\Controllers\TrajetController;
+use App\Http\Controllers\VilleController;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\VilleController;
-use App\Http\Controllers\TrajetController;
-use App\Http\Controllers\TaxiController;
-use App\Http\Controllers\ReservationController;
 
 
 
@@ -51,6 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/taxis/{taxi}', [TaxiController::class, 'destroy']);
 });
 
+Route::get('/taxis/{taxi}/sieges-occupes', [TaxiController::class, 'siegesOccupes']);
+
 // routes reservations
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reservations', [ReservationController::class, 'index']);
@@ -61,3 +65,25 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin
     Route::get('/admin/reservations', [ReservationController::class, 'adminIndex']);
 });
+
+
+// route de billet
+Route::get('/reservations/{reservation}/billet', [BilletController::class, 'telecharger']);
+
+// Admin users list
+Route::get('/admin/users', function() {
+    return response()->json(User::all());
+})->middleware('auth:sanctum');
+// Bannir
+Route::patch('/admin/users/{id}/ban', function($id) {
+    $user = User::findOrFail($id);
+    $user->update(['status' => 'inactive']);
+    return response()->json(['message' => 'Utilisateur banni']);
+})->middleware('auth:sanctum');
+
+// Débannir
+Route::patch('/admin/users/{id}/unban', function($id) {
+    $user = User::findOrFail($id);
+    $user->update(['status' => 'active']);
+    return response()->json(['message' => 'Utilisateur débanni']);
+})->middleware('auth:sanctum');
