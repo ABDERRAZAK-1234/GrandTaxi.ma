@@ -63,6 +63,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Identifiants invalides'], 401);
         }
 
+        if ($user->status === 'inactive') {
+            return response()->json([
+                'message' => 'Votre compte a été suspendu.'
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -71,8 +77,8 @@ class AuthController extends Controller
             'access_token' => $token,
             'token_type' => 'Bearer',
         ]);
-    }
 
+    }
     /**
      * Logout the user
      */
