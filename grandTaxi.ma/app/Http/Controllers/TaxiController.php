@@ -30,14 +30,35 @@ class TaxiController extends Controller
             'statuts' => 'required|in:available,reserved,full,unavailable',
             'driver_id' => 'required|exists:users,id',
             'trajet_id' => 'required|exists:trajets,id',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,jfif,avif|max:2048',
         ]);
+
+        // Image upload
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $name = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('taxis', $name, 'public');
+            $validated['image'] = $path;
+        }
+
+
+        $user = $request->user();
+
+        if ($user->role === 'driver') {
+            $validated['driver_id'] = $user->id;
+        } else {
+            $request->validate([
+                'driver_id' => 'required|exists:users,id',
+            ]);
+            $validated['driver_id'] = $request->driver_id;
+        }
 
         $taxi = Taxi::create($validated);
         $taxi->load(['driver', 'trajet']);
 
         return response()->json([
             'message' => 'Taxi créé avec succès',
-            'data' => $taxi
+            'data' => $taxi,
         ], 201);
     }
 
