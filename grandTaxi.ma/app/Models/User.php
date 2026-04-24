@@ -23,7 +23,8 @@ class User extends Authenticatable
         'prenom',
         'email',
         'password',
-        'role'
+        'role',
+        'status'
     ];
 
     /**
@@ -47,5 +48,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function driverProfile()
+    {
+        return $this->hasOne(DriverProfile::class);
     }
 }
