@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTaxiAdminRequest;
+use App\Http\Requests\StoreTaxiDriverRequest;
 use App\Models\Reservation;
 use App\Models\Taxi;
 use App\Models\Trajet;
@@ -9,11 +11,13 @@ use Illuminate\Http\Request;
 
 class TaxiController extends Controller
 {
+
     public function index()
     {
         $taxis = Taxi::with(['driver', 'trajet'])->get();
         return response()->json($taxis);
     }
+
 
     public function show(Taxi $taxi)
     {
@@ -22,18 +26,80 @@ class TaxiController extends Controller
     }
 
 
-    public function store(Request $request)
+
+    public function store(StoreTaxiAdminRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            // Upload image
+            $file = $request->file('image');
+            $name = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('taxis', $name, 'public');
+            $validated['image'] = $path;
+
+
+            $validated['statuts'] = $validated['statuts'] ?? 'available';
+
+            $taxi = Taxi::create($validated);
+            $taxi->load(['driver', 'trajet']);
+
+            return response()->json([
+                'message' => 'Taxi créé avec succès.',
+                'data'    => $taxi,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la création du taxi.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function storeDriver(StoreTaxiDriverRequest $request)
+    {
+        try {
+            $validated = $request->validated();
+
+            $file = $request->file('image');
+            $name = time() . '_' . $file->getClientOriginalName();
+            $path = $file->storeAs('taxis', $name, 'public');
+            $validated['image'] = $path;
+
+            $validated['driver_id'] = $request->user()->id;
+
+            $validated['statuts'] = 'available';
+
+            $taxi = Taxi::create($validated);
+            $taxi->load(['driver', 'trajet']);
+
+            return response()->json([
+                'message' => 'Taxi créé avec succès.',
+                'data'    => $taxi,
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erreur lors de la création du taxi.',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    public function update(Request $request, Taxi $taxi)
     {
         $validated = $request->validate([
-            'matricule' => 'required|string|unique:taxis,matricule',
-            'capacite' => 'required|integer|min:4',
-            'statuts' => 'required|in:available,reserved,full,unavailable',
-            'driver_id' => 'required|exists:users,id',
-            'trajet_id' => 'required|exists:trajets,id',
-            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,jfif,avif|max:2048',
+            'matricule' => 'sometimes|string|unique:taxis,matricule,' . $taxi->id,
+            'capacite'  => 'sometimes|integer|min:1',
+            'statuts'   => 'sometimes|in:available,reserved,full,unavailable',
+            'driver_id' => 'sometimes|exists:users,id',
+            'trajet_id' => 'sometimes|exists:trajets,id',
+            'image'     => 'sometimes|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        // Image upload
         if ($request->hasFile('image')) {
             $file = $request->file('image');
             $name = time() . '_' . $file->getClientOriginalName();
@@ -41,60 +107,29 @@ class TaxiController extends Controller
             $validated['image'] = $path;
         }
 
-
-        $user = $request->user();
-
-        if ($user->role === 'driver') {
-            $validated['driver_id'] = $user->id;
-        } else {
-            $request->validate([
-                'driver_id' => 'required|exists:users,id',
-            ]);
-            $validated['driver_id'] = $request->driver_id;
-        }
-
-        $taxi = Taxi::create($validated);
-        $taxi->load(['driver', 'trajet']);
-
-        return response()->json([
-            'message' => 'Taxi créé avec succès',
-            'data' => $taxi,
-        ], 201);
-    }
-
-    public function update(Request $request, Taxi $taxi)
-    {
-        $validated = $request->validate([
-            'matricule' => 'sometimes|string|unique:taxis,matricule,' . $taxi->id,
-            'capacite' => 'sometimes|integer|min:1',
-            'statuts' => 'sometimes|in:available,reserved,full,unavailable',
-            'driver_id' => 'sometimes|exists:users,id',
-            'trajet_id' => 'sometimes|exists:trajets,id',
-        ]);
-
         $taxi->update($validated);
         $taxi->load(['driver', 'trajet']);
 
         return response()->json([
-            'message' => 'Taxi mis à jour avec succès',
-            'data' => $taxi
+            'message' => 'Taxi mis à jour avec succès.',
+            'data'    => $taxi,
         ], 200);
     }
+
 
     public function destroy(Taxi $taxi)
     {
         $taxi->delete();
-        return response()->json(['message' => 'Taxi supprimé avec succès']);
+        return response()->json(['message' => 'Taxi supprimé avec succès.']);
     }
 
-    // taxis avec les taxi de ce trajet
+
     public function parTrajet(Trajet $trajet)
     {
         $taxis = Taxi::where('trajet_id', $trajet->id)
             ->whereIn('statuts', ['available', 'reserved'])
             ->get()
             ->map(function ($taxi) {
-                // sum des places reservées (pas count des reservations)
                 $placesReservees = Reservation::where('taxi_id', $taxi->id)
                     ->where('statut', 'confirmed')
                     ->sum('nombre_place');
@@ -107,7 +142,7 @@ class TaxiController extends Controller
         return response()->json($taxis);
     }
 
-    // sieges occupes
+
     public function siegesOccupes(Taxi $taxi)
     {
         $siegesOccupes = Reservation::where('taxi_id', $taxi->id)
@@ -116,7 +151,6 @@ class TaxiController extends Controller
             ->get()
             ->pluck('sieges')
             ->map(function ($siege) {
-                // Parser si c'est un string JSON
                 $parsed = is_string($siege) ? json_decode($siege, true) : $siege;
                 return $parsed;
             })
@@ -129,5 +163,4 @@ class TaxiController extends Controller
             'sieges_occupes' => $siegesOccupes
         ]);
     }
-
 }
