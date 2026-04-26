@@ -50,8 +50,43 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * A driver has one profile (cne, permis, etc.)
+     */
     public function driverProfile()
     {
         return $this->hasOne(DriverProfile::class);
+    }
+
+    /**
+     * A driver has one taxi.
+     */
+    public function taxi()
+    {
+        return $this->hasOne(Taxi::class, 'driver_id');
+    }
+
+    /**
+     * A user has many reservations.
+     */
+    public function reservations()
+    {
+        return $this->hasMany(Reservation::class);
+    }
+
+    /**
+     * Check if user is admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user is driver.
+     */
+    public function isDriver(): bool
+    {
+        return $this->role === 'driver';
     }
 }
