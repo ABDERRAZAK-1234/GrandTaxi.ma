@@ -17,31 +17,53 @@ if (role === "driver") {
         "Vous pourrez réserver des places";
 }
 
+// Fetch trajets if driver
+if (role === "driver") {
+    axios.get("/api/trajets").then(res => {
+        const select = document.getElementById("taxi_trajet");
+        const trajets = res.data.data || res.data;
+        trajets.forEach(t => {
+            const dep = t.ville_depart ? t.ville_depart.nom : 'Inconnu';
+            const arr = t.ville_arrivee ? t.ville_arrivee.nom : 'Inconnu';
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.innerText = `${dep} ➔ ${arr}`;
+            select.appendChild(opt);
+        });
+    }).catch(console.error);
+}
+
 async function register() {
     document.getElementById("error-msg").classList.add("hidden");
     document.getElementById("success-msg").classList.add("hidden");
 
-    const data = {
-        nom: document.getElementById("nom").value,
-        prenom: document.getElementById("prenom").value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        password_confirmation: document.getElementById("password_confirmation")
-            .value,
-        role: role,
-    };
+    const formData = new FormData();
+    formData.append("nom", document.getElementById("nom").value);
+    formData.append("prenom", document.getElementById("prenom").value);
+    formData.append("email", document.getElementById("email").value);
+    formData.append("password", document.getElementById("password").value);
+    formData.append("password_confirmation", document.getElementById("password_confirmation").value);
+    formData.append("role", role);
 
     if (role === "driver") {
-        data.cne = document.getElementById("cne").value;
-        data.permis = document.getElementById("permis").value;
-        data.taxi_matricule = document.getElementById("taxi_matricule").value;
-        data.taxi_capacite = parseInt(
-            document.getElementById("taxi_capacite").value,
-        );
+        formData.append("cne", document.getElementById("cne").value);
+        formData.append("permis", document.getElementById("permis").value);
+        formData.append("taxi_matricule", document.getElementById("taxi_matricule").value);
+        formData.append("taxi_capacite", document.getElementById("taxi_capacite").value);
+        
+        const trajetId = document.getElementById("taxi_trajet").value;
+        if (trajetId) formData.append("taxi_trajet", trajetId);
+
+        const imageFile = document.getElementById("taxi_image").files[0];
+        if (imageFile) {
+            formData.append("taxi_image", imageFile);
+        }
     }
 
     try {
-        const res = await axios.post("/api/register", data);
+        const res = await axios.post("/api/register", formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
 
         localStorage.setItem("api_token", res.data.access_token);
         localStorage.setItem("user", JSON.stringify(res.data.user));
@@ -52,7 +74,11 @@ async function register() {
         document.getElementById("success-msg").classList.remove("hidden");
 
         setTimeout(() => {
-            window.location.href = "/index";
+            if (role === 'driver') {
+                window.location.href = '/driver/dashboard';
+            } else {
+                window.location.href = '/index';
+            }
         }, 1500);
     } catch (err) {
         const errors = err.response?.data?.errors;
