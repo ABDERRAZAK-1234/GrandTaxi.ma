@@ -296,39 +296,42 @@ function afficherTaxis(taxis) {
         placesHTML += "</div>";
 
         const card = `
-            <div class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 group ${isFull ? "opacity-60" : ""}">
+            <div class="gt-card p-6 hover:shadow-xl transition-all duration-300 group ${isFull ? "opacity-60" : ""}">
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <span class="text-xs font-bold ${isFull ? "text-red-600 bg-red-50" : "text-green-600 bg-green-50"} px-2 py-1 rounded mb-2 inline-block uppercase">
+                        <span class="text-xs font-bold ${isFull ? "gt-badge-red-light" : "gt-badge-green-light"} px-2 py-1 rounded mb-2 inline-block uppercase">
                             ${isFull ? "Complet" : placesRestantes + " place(s) disponible(s)"}
                         </span>
-                        <div class="text-lg font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+                        <div class="text-lg font-bold flex items-center gap-2 flex-wrap" style="color: var(--gt-text);">
                             ${taxi.nomDepart} <i class="fas fa-arrow-right text-sm text-gray-400"></i> ${taxi.nomArrivee}
                         </div>
                     </div>
                     <div class="text-right">
-                        <span class="text-2xl font-bold text-blue-600">${taxi.trajet.prix} MAD</span>
-                        <p class="text-xs text-gray-400">par place</p>
+                        <span class="text-2xl font-bold" style="color: var(--gt-red);">${taxi.trajet.prix} MAD</span>
+                        <p class="text-xs" style="color: var(--gt-text-light);">par place</p>
                     </div>
                 </div>
                 <div class="space-y-2 mb-4">
-                    <div class="flex items-center text-gray-600">
-                        <i class="fas fa-taxi w-6 text-blue-500"></i>
+                    <div class="flex items-center" style="color: var(--gt-text-muted);">
+                        <i class="fas fa-taxi w-6" style="color: var(--gt-red);"></i>
                         <span class="text-sm font-medium">${taxi.matricule}</span>
                     </div>
-                    <div class="flex items-center text-gray-600">
-                        <i class="fas fa-chair w-6 text-blue-500"></i>
+                    <div class="flex items-center" style="color: var(--gt-text-muted);">
+                        <i class="fas fa-chair w-6" style="color: var(--gt-green);"></i>
                         <div><span class="text-sm">Places :</span>${placesHTML}</div>
                     </div>
-                    <div class="flex items-center text-gray-600">
-                        <i class="fas fa-briefcase w-6 text-blue-500"></i>
-                        <span class="text-sm">Bagage: <span class="text-green-600 font-semibold">+10 MAD</span></span>
+                    <div class="flex items-center" style="color: var(--gt-text-muted);">
+                        <i class="fas fa-briefcase w-6" style="color: var(--gt-gold);"></i>
+                        <span class="text-sm">Bagage: <span class="font-semibold" style="color: var(--gt-green);">+10 MAD</span></span>
                     </div>
                 </div>
                 <button
                     onclick='ouvrirModal(${JSON.stringify(taxi.trajet)}, "${taxi.nomDepart}", "${taxi.nomArrivee}", ${taxi.id})'
                     ${isFull ? "disabled" : ""}
-                    class="w-full py-3 border-2 border-blue-600 text-blue-600 font-bold rounded-xl group-hover:bg-blue-600 group-hover:text-white transition duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    class="w-full py-3 font-bold rounded-xl transition duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style="border: 2px solid var(--gt-red); color: var(--gt-red);"
+                    onmouseover="if(!this.disabled){this.style.background='var(--gt-red)';this.style.color='white';}"
+                    onmouseout="this.style.background='transparent';this.style.color='var(--gt-red)';">
                     <i class="fas fa-chair"></i>
                     ${isFull ? "Taxi complet" : "Choisir mes sièges"}
                 </button>
