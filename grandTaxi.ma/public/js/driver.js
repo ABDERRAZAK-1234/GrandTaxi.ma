@@ -1,5 +1,6 @@
+
 const BASE_URL = '/api';
-localStorage.setItem('api_token', response.data.access_token);
+const token = localStorage.getItem('api_token');
 const user = JSON.parse(localStorage.getItem('user') || 'null');
 const headers = { Authorization: `Bearer ${token}` };
 
@@ -7,252 +8,280 @@ if (!token || !user || user.role !== 'driver') {
     window.location.href = '/login';
 }
 
-let myTaxis = [];
-let myReservations = [];
+// Dashboard state
+let dashboardData = null;
 let driverStatus = true;
 
 // ─── INIT ───────────────────────────────────────────────
 if (user) {
-    const initials = user.prenom[0].toUpperCase();
+    var initials = (user.prenom && user.prenom[0]) ? user.prenom[0].toUpperCase() : 'D';
     document.getElementById('driver-avatar').innerText = initials;
-    document.getElementById('driver-name').innerText = user.prenom + ' ' + user.nom;
-    document.getElementById('driver-cne').innerText = user.cne || '';
+    document.getElementById('driver-name').innerText = (user.prenom || '') + ' ' + (user.nom || '');
     document.getElementById('profile-avatar').innerText = initials;
-    document.getElementById('profile-name').innerText = user.prenom + ' ' + user.nom;
-    document.getElementById('profile-email').innerText = user.email;
-    document.getElementById('profile-cne').innerText = user.cne || '—';
-    document.getElementById('profile-permis').innerText = user.permis || '—';
+    document.getElementById('profile-name').innerText = (user.prenom || '') + ' ' + (user.nom || '');
+    document.getElementById('profile-email').innerText = user.email || '';
+
+    // Pre-populate driver profile from localStorage (if available from login/register)
+    var dp = user.driver_profile;
+    if (dp) {
+        document.getElementById('driver-cne').innerText = dp.cne || '';
+        document.getElementById('profile-cne').innerText = dp.cne || '—';
+        document.getElementById('profile-permis').innerText = dp.permis || '—';
+    }
 }
 
 // ─── REVERB ─────────────────────────────────────────────
-Pusher.logToConsole = false;
-const pusher = new Pusher('{{ env("REVERB_APP_KEY") }}', {
-    wsHost: '{{ env("REVERB_HOST", "localhost") }}',
-    wsPort: {{ env("REVERB_PORT", 8080) }},
-forceTLS: false,
-    enableStats: false,
+// Reverb config is injected from Blade
+function initReverb() {
+    if (typeof Pusher === 'undefined' || !window.REVERB_CONFIG) return;
+
+    Pusher.logToConsole = false;
+    const cfg = window.REVERB_CONFIG;
+    const pusher = new Pusher(cfg.key, {
+        wsHost: cfg.host,
+        wsPort: cfg.port,
+        forceTLS: false,
+        enableStats: false,
         enabledTransports: ['ws'],
-            cluster: 'mt1',
+        cluster: 'mt1',
     });
 
-pusher.connection.bind('connected', () => {
-    console.log('✅ Reverb connecté — Dashboard Conducteur');
-});
+    pusher.connection.bind('connected', () => {
+        console.log('✅ Reverb connecté — Dashboard Conducteur');
+    });
+
+    window._pusher = pusher;
+}
 
 function ecouterTaxi(trajetId, taxiId) {
-    const channel = pusher.subscribe('trajets.' + trajetId);
+    if (!window._pusher) return;
+    const channel = window._pusher.subscribe('trajets.' + trajetId);
+
+    // Prevent duplicate event listeners when dashboard reloads
+    channel.unbind('reservation.created');
+
     channel.bind('reservation.created', function (data) {
         if (data.taxi_id != taxiId) return;
-        afficherToast('🎉 Nouveau siège réservé dans le taxi ' + taxiId + ' !', 'emerald');
-        loadAll();
+        afficherToast('🎉 Nouveau siège réservé !', 'emerald');
+        loadDashboard();
         afficherPlanSieges(taxiId);
-        document.getElementById('notif-badge').innerText =
-            parseInt(document.getElementById('notif-badge').innerText || 0) + 1;
+        const badge = document.getElementById('notif-badge');
+        badge.innerText = parseInt(badge.innerText || 0) + 1;
     });
 }
 
-// ─── LOAD ALL ───────────────────────────────────────────
-async function loadAll() {
-    await Promise.all([loadTaxis(), loadStats()]);
-}
-
-async function loadTaxis() {
+// ─── LOAD DASHBOARD (consolidated endpoint) ─────────────
+async function loadDashboard() {
     try {
-        const res = await axios.get(`${BASE_URL}/taxis`, { headers });
-        myTaxis = res.data.filter(t => t.driver_id == user.id);
+        const res = await axios.get(`${BASE_URL}/driver/dashboard`, { headers });
+        dashboardData = res.data;
 
-        // Populate taxi select for plan
-        const select = document.getElementById('select-taxi-plan');
-        const currentVal = select.value;
-        select.innerHTML = '<option value="">Choisir taxi...</option>' +
-            myTaxis.map(t => `<option value="${t.id}">${t.matricule}</option>`).join('');
-        if (currentVal) select.value = currentVal;
+        // Update profile section from API response
+        const driver = dashboardData.driver;
+        const profile = dashboardData.profile;
 
-        document.getElementById('stat-taxis').innerText = myTaxis.length;
-
-        afficherTaxis();
-
-        // S'abonner aux canaux Reverb de chaque taxi
-        myTaxis.forEach(taxi => {
-            if (taxi.trajet_id) ecouterTaxi(taxi.trajet_id, taxi.id);
-        });
-
-    } catch (e) { console.error(e); }
-}
-
-async function loadStats() {
-    try {
-        // Charger les réservations de tous mes taxis
-        let totalReservations = 0;
-        let totalPlacesRestantes = 0;
-        let totalRevenus = 0;
-        const allRes = [];
-
-        for (const taxi of myTaxis) {
-            const res = await axios.get(`${BASE_URL}/taxis/${taxi.id}/sieges-occupes`, { headers });
-            const siegesOccupes = res.data.sieges_occupes?.length || 0;
-            totalPlacesRestantes += Math.max(0, taxi.capacite - siegesOccupes);
+        if (driver) {
+            const initials = driver.prenom?.[0]?.toUpperCase() || 'D';
+            document.getElementById('driver-avatar').innerText = initials;
+            document.getElementById('driver-name').innerText = (driver.prenom || '') + ' ' + (driver.nom || '');
+            document.getElementById('profile-avatar').innerText = initials;
+            document.getElementById('profile-name').innerText = (driver.prenom || '') + ' ' + (driver.nom || '');
+            document.getElementById('profile-email').innerText = driver.email || '';
         }
 
-        // Réservations via admin
-        const resAdmin = await axios.get(`${BASE_URL}/admin/reservations`, { headers });
-        myReservations = resAdmin.data.filter(r =>
-            myTaxis.some(t => t.id == r.taxi_id)
-        );
+        // Update driver profile
+        if (profile) {
+            document.getElementById('driver-cne').innerText = profile.cne || '';
+            document.getElementById('profile-cne').innerText = profile.cne || '—';
+            document.getElementById('profile-permis').innerText = profile.permis || '—';
+        } else {
+            document.getElementById('driver-cne').innerText = '';
+            document.getElementById('profile-cne').innerText = '—';
+            document.getElementById('profile-permis').innerText = '—';
+        }
 
-        totalReservations = myReservations.filter(r => r.statut === 'confirmed').length;
-        totalRevenus = myReservations
-            .filter(r => r.statut === 'confirmed')
-            .reduce((s, r) => s + parseFloat(r.prix_total || 0), 0);
+        // Update stats
+        const stats = dashboardData.stats || {};
+        document.getElementById('stat-taxis').innerText = dashboardData.taxi ? '1' : '0';
+        document.getElementById('stat-reservations').innerText = stats.confirmed || 0;
+        document.getElementById('stat-places').innerText = stats.places_restantes || 0;
+        document.getElementById('stat-revenus').innerText = (stats.revenus || 0).toFixed(0) + ' MAD';
 
-        document.getElementById('stat-reservations').innerText = totalReservations;
-        document.getElementById('stat-places').innerText = totalPlacesRestantes;
-        document.getElementById('stat-revenus').innerText = totalRevenus.toFixed(0) + ' MAD';
+        // Render taxi card
+        afficherTaxi();
 
+        // Render recent reservations
         afficherReservationsRecentes();
 
-    } catch (e) { console.error(e); }
+        // Subscribe to Reverb for real-time updates
+        if (dashboardData.taxi && dashboardData.taxi.trajet_id) {
+            ecouterTaxi(dashboardData.taxi.trajet_id, dashboardData.taxi.id);
+        }
+
+        // Populate seat plan selector
+        const select = document.getElementById('select-taxi-plan');
+        if (dashboardData.taxi) {
+            select.innerHTML = `<option value="${dashboardData.taxi.id}">${dashboardData.taxi.matricule}</option>`;
+        } else {
+            select.innerHTML = '<option value="">Aucun taxi</option>';
+        }
+
+    } catch (e) {
+        console.error('Erreur chargement dashboard:', e);
+        // If 401 Unauthorized → redirect to login
+        if (e.response && e.response.status === 401) {
+            localStorage.removeItem('api_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+        // If 403 Forbidden → role mismatch
+        if (e.response && e.response.status === 403) {
+            console.error('Accès interdit — rôle incorrect.');
+        }
+    }
 }
 
-// ─── AFFICHER TAXIS ─────────────────────────────────────
-function afficherTaxis() {
+// ─── AFFICHER TAXI ──────────────────────────────────────
+function afficherTaxi() {
     const container = document.getElementById('taxis-list');
+    const taxi = dashboardData ? dashboardData.taxi : null;
 
-    if (myTaxis.length === 0) {
+    if (!taxi) {
         container.innerHTML = `
-                <div class="bg-[#161b27] border border-[#1e2537] border-dashed rounded-2xl p-8 text-center">
-                    <i class="fas fa-taxi text-slate-600 text-3xl mb-3"></i>
-                    <p class="text-slate-500 text-sm">Aucun taxi enregistré</p>
-                    <button onclick="openModal('modal-add-taxi')"
-                        class="mt-3 text-blue-400 text-xs hover:underline">
-                        Ajouter mon premier taxi
-                    </button>
-                </div>
-            `;
+            <div class="bg-[#161b27] border border-[#1e2537] border-dashed rounded-2xl p-8 text-center">
+                <i class="fas fa-taxi text-slate-600 text-3xl mb-3"></i>
+                <p class="text-slate-500 text-sm">Aucun taxi enregistré</p>
+                <button onclick="openModal('modal-add-taxi')"
+                    class="mt-3 text-blue-400 text-xs hover:underline">
+                    Ajouter mon taxi
+                </button>
+            </div>
+        `;
         return;
     }
 
-    container.innerHTML = myTaxis.map(taxi => {
-        const statusColors = {
-            available: 'bg-emerald-900/50 text-emerald-300',
-            reserved: 'bg-blue-900/50 text-blue-300',
-            full: 'bg-red-900/50 text-red-300',
-            unavailable: 'bg-slate-700 text-slate-400',
-        };
+    // If driver already has a taxi, hide the header "add" button
+    document.querySelectorAll('button').forEach(function (btn) {
+        if (btn.textContent.trim().includes('Ajouter un taxi') &&
+            btn.closest('.flex.items-center.justify-between')) {
+            btn.style.display = 'none';
+        }
+    });
 
-        const trajetInfo = taxi.trajet
-            ? `Trajet #${taxi.trajet.id} — ${taxi.trajet.prix} MAD`
-            : 'Aucun trajet assigné';
+    var statusColors = {
+        available: 'bg-emerald-900/50 text-emerald-300',
+        reserved: 'bg-blue-900/50 text-blue-300',
+        full: 'bg-red-900/50 text-red-300',
+        unavailable: 'bg-slate-700 text-slate-400',
+    };
 
-        return `
-                <div class="bg-[#161b27] border border-[#1e2537] hover:border-blue-500/40 rounded-2xl p-5 transition-colors">
-                    <div class="flex items-start gap-4">
+    var trajetInfo = taxi.trajet
+        ? 'Trajet #' + taxi.trajet.id + ' — ' + taxi.trajet.prix + ' MAD'
+        : 'Aucun trajet assigné';
 
-                        {{-- Image taxi --}}
-                        <div class="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-[#0f1117] border border-[#1e2537]">
-                            ${taxi.image_url
-                ? `<img src="${taxi.image_url}" class="w-full h-full object-cover" alt="${taxi.matricule}">`
-                : `<div class="w-full h-full flex items-center justify-center">
-                                    <i class="fas fa-taxi text-slate-600 text-2xl"></i>
-                                   </div>`
-            }
-                        </div>
+    var imageHtml = taxi.image_url
+        ? '<img src="' + taxi.image_url + '" class="w-full h-full object-cover" alt="' + taxi.matricule + '">'
+        : '<div class="w-full h-full flex items-center justify-center"><i class="fas fa-taxi text-slate-600 text-2xl"></i></div>';
 
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="font-bold text-white">${taxi.matricule}</p>
-                                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusColors[taxi.statuts] || 'bg-slate-700 text-slate-400'}">
-                                    ${taxi.statuts}
-                                </span>
-                            </div>
+    var placesHtml = '';
+    for (var i = 0; i < taxi.capacite; i++) {
+        placesHtml += '<div class="w-5 h-5 rounded-sm bg-emerald-900/50 border border-emerald-700" title="S' + (i + 1) + '"></div>';
+    }
 
-                            <div class="space-y-1.5 text-xs text-slate-400">
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-chair w-4 text-center text-blue-400"></i>
-                                    ${taxi.capacite} places
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <i class="fas fa-route w-4 text-center text-blue-400"></i>
-                                    ${trajetInfo}
-                                </div>
-                            </div>
+    container.innerHTML =
+        '<div class="bg-[#161b27] border border-[#1e2537] hover:border-blue-500/40 rounded-2xl p-5 transition-colors">' +
+        '<div class="flex items-start gap-4">' +
+        '<div class="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-[#0f1117] border border-[#1e2537]">' +
+        imageHtml +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+        '<div class="flex items-center justify-between mb-2">' +
+        '<p class="font-bold text-white">' + taxi.matricule + '</p>' +
+        '<span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ' + (statusColors[taxi.statuts] || 'bg-slate-700 text-slate-400') + '">' +
+        taxi.statuts +
+        '</span>' +
+        '</div>' +
+        '<div class="space-y-1.5 text-xs text-slate-400">' +
+        '<div class="flex items-center gap-2">' +
+        '<i class="fas fa-chair w-4 text-center text-blue-400"></i>' +
+        taxi.capacite + ' places' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+        '<i class="fas fa-route w-4 text-center text-blue-400"></i>' +
+        trajetInfo +
+        '</div>' +
+        '</div>' +
+        '<div class="flex gap-1 mt-3" id="places-taxi-' + taxi.id + '">' +
+        placesHtml +
+        '</div>' +
+        '</div>' +
+        '<button onclick="afficherPlanSieges(' + taxi.id + ')"' +
+        ' class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="Voir plan">' +
+        '<i class="fas fa-map-marked-alt"></i>' +
+        '</button>' +
+        '</div>' +
+        '</div>';
 
-                            {{-- Places visuelles --}}
-                            <div class="flex gap-1 mt-3" id="places-taxi-${taxi.id}">
-                                ${Array.from({ length: taxi.capacite }, (_, i) =>
-                `<div class="w-5 h-5 rounded-sm bg-emerald-900/50 border border-emerald-700" title="S${i + 1}"></div>`
-            ).join('')}
-                            </div>
-                        </div>
+    // Load occupied seats visualization
+    chargerPlacesTaxi(taxi);
 
-                        <button onclick="afficherPlanSieges(${taxi.id})"
-                            class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="Voir plan">
-                            <i class="fas fa-map-marked-alt"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-    }).join('');
-
-    // Charger les sièges occupés pour chaque taxi
-    myTaxis.forEach(taxi => chargerPlacesTaxi(taxi));
-
-    // Charger les trajets
+    // Show trajets section
     afficherTrajets();
 }
 
 async function chargerPlacesTaxi(taxi) {
     try {
-        const res = await axios.get(`${BASE_URL}/taxis/${taxi.id}/sieges-occupes`, { headers });
-        const occupes = res.data.sieges_occupes || [];
-        const container = document.getElementById(`places-taxi-${taxi.id}`);
+        var res = await axios.get(BASE_URL + '/taxis/' + taxi.id + '/sieges-occupes', { headers: headers });
+        var occupes = res.data.sieges_occupes || [];
+        var container = document.getElementById('places-taxi-' + taxi.id);
         if (!container) return;
 
-        container.innerHTML = Array.from({ length: taxi.capacite }, (_, i) => {
-            const num = i + 1;
-            const pris = occupes.includes(num) || occupes.includes(String(num));
-            return `<div class="w-5 h-5 rounded-sm ${pris ? 'bg-red-900/50 border border-red-700' : 'bg-emerald-900/50 border border-emerald-700'}"
-                    title="S${num} — ${pris ? 'Occupé' : 'Libre'}"></div>`;
-        }).join('');
-    } catch (e) { }
+        var html = '';
+        for (var i = 0; i < taxi.capacite; i++) {
+            var num = i + 1;
+            var pris = occupes.indexOf(num) !== -1 || occupes.indexOf(String(num)) !== -1;
+            html += '<div class="w-5 h-5 rounded-sm ' +
+                (pris ? 'bg-red-900/50 border border-red-700' : 'bg-emerald-900/50 border border-emerald-700') +
+                '" title="S' + num + ' — ' + (pris ? 'Occupé' : 'Libre') + '"></div>';
+        }
+        container.innerHTML = html;
+    } catch (e) { /* silent */ }
 }
 
 // ─── AFFICHER TRAJETS ───────────────────────────────────
 async function afficherTrajets() {
-    const container = document.getElementById('trajets-list');
-    const trajetIds = [...new Set(myTaxis.filter(t => t.trajet_id).map(t => t.trajet_id))];
+    var container = document.getElementById('trajets-list');
+    var taxi = dashboardData ? dashboardData.taxi : null;
 
-    if (trajetIds.length === 0) {
-        container.innerHTML = `<p class="text-slate-600 text-sm text-center py-4">Aucun trajet assigné</p>`;
+    if (!taxi || !taxi.trajet_id) {
+        container.innerHTML = '<p class="text-slate-600 text-sm text-center py-4">Aucun trajet assigné</p>';
         return;
     }
 
     try {
-        const res = await axios.get(`${BASE_URL}/trajets`, { headers });
-        const trajets = res.data.filter(t => trajetIds.includes(t.id));
+        var res = await axios.get(BASE_URL + '/trajets/' + taxi.trajet_id, { headers: headers });
+        var t = res.data;
 
-        container.innerHTML = trajets.map(t => {
-            const statusColors = {
-                actif: 'bg-emerald-900/50 text-emerald-300',
-                cloture: 'bg-red-900/50 text-red-300',
-            };
-            return `
-                    <div class="bg-[#161b27] border border-[#1e2537] rounded-xl p-4 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-route text-blue-400 text-xs"></i>
-                            </div>
-                            <div>
-                                <p class="text-white text-sm font-semibold">Trajet #${t.id}</p>
-                                <p class="text-slate-500 text-xs">${t.prix} MAD / place</p>
-                            </div>
-                        </div>
-                        <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusColors[t.statut] || 'bg-slate-700 text-slate-400'}">
-                            ${t.statut}
-                        </span>
-                    </div>
-                `;
-        }).join('');
+        var statusColors = {
+            actif: 'bg-emerald-900/50 text-emerald-300',
+            cloture: 'bg-red-900/50 text-red-300',
+        };
+
+        container.innerHTML =
+            '<div class="bg-[#161b27] border border-[#1e2537] rounded-xl p-4 flex items-center justify-between">' +
+            '<div class="flex items-center gap-3">' +
+            '<div class="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">' +
+            '<i class="fas fa-route text-blue-400 text-xs"></i>' +
+            '</div>' +
+            '<div>' +
+            '<p class="text-white text-sm font-semibold">Trajet #' + t.id + '</p>' +
+            '<p class="text-slate-500 text-xs">' + t.prix + ' MAD / place</p>' +
+            '</div>' +
+            '</div>' +
+            '<span class="text-xs font-semibold px-2.5 py-0.5 rounded-full ' + (statusColors[t.statut] || 'bg-slate-700 text-slate-400') + '">' +
+            t.statut +
+            '</span>' +
+            '</div>';
     } catch (e) { console.error(e); }
 }
 
@@ -260,109 +289,137 @@ async function afficherTrajets() {
 async function afficherPlanSieges(taxiId) {
     if (!taxiId) return;
 
-    const select = document.getElementById('select-taxi-plan');
+    var select = document.getElementById('select-taxi-plan');
     select.value = taxiId;
 
     try {
-        const res = await axios.get(`${BASE_URL}/taxis/${taxiId}/sieges-occupes`, { headers });
-        const occupes = res.data.sieges_occupes || [];
-        const taxi = myTaxis.find(t => t.id == taxiId);
-        if (!taxi) return;
+        var res = await axios.get(BASE_URL + '/taxis/' + taxiId + '/sieges-occupes', { headers: headers });
+        var occupes = res.data.sieges_occupes || [];
+        var taxi = dashboardData ? dashboardData.taxi : null;
+        if (!taxi || taxi.id != taxiId) return;
 
-        const capacite = taxi.capacite || 6;
+        var capacite = taxi.capacite || 6;
 
-        // SVG du plan
-        const svgContent = `
-                <svg viewBox="0 0 140 320" width="140" height="320" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="5" y="5" width="130" height="310" rx="30" fill="#1e2537" stroke="#374151" stroke-width="1.5"/>
-                    <rect x="20" y="20" width="100" height="280" rx="15" fill="#0f1117"/>
-                    <circle cx="45" cy="65" r="16" fill="#1e2537" stroke="#374151" stroke-width="1"/>
-                    ${getSiegeSVG(1, 78, 48, occupes)}
-                    ${getSiegeSVG(2, 28, 120, occupes)}
-                    ${getSiegeSVG(3, 78, 120, occupes)}
-                    ${capacite >= 5 ? getSiegeSVG(4, 18, 190, occupes) : ''}
-                    ${capacite >= 5 ? getSiegeSVG(5, 68, 190, occupes) : ''}
-                    ${capacite >= 6 ? getSiegeSVG(6, 43, 255, occupes) : ''}
-                </svg>
-            `;
+        var svgContent =
+            '<div class="relative w-full max-w-[240px] mx-auto aspect-[220/480] mt-4">' +
+            '<img src="/images/taxi_kbir_booking_seats-Photoroom12.png" class="absolute inset-0 w-full h-full object-contain rounded-xl" alt="Plan du taxi">' +
+            '<svg viewBox="0 0 220 480" preserveAspectRatio="xMidYMid meet" class="absolute inset-0 w-full h-full">' +
+            getSiegeSVG(1, 133, 185, occupes) +
+            getSiegeSVG(2, 63, 260, occupes) +
+            getSiegeSVG(3, 99, 260, occupes) +
+            getSiegeSVG(4, 135, 260, occupes) +
+            (capacite >= 5 ? getSiegeSVG(5, 73, 340, occupes) : '') +
+            (capacite >= 6 ? getSiegeSVG(6, 124, 340, occupes) : '') +
+            '</svg>' +
+            '</div>';
 
         document.getElementById('plan-sieges').innerHTML = svgContent;
     } catch (e) { console.error(e); }
 }
 
 function getSiegeSVG(num, x, y, occupes) {
-    const pris = occupes.includes(num) || occupes.includes(String(num));
-    const cls = pris ? 'seat-taken' : 'seat-free';
-    const lcls = pris ? 'seat-label-taken' : 'seat-label-free';
-    return `
-            <rect x="${x}" y="${y}" width="40" height="48" rx="8" class="seat ${cls}"/>
-            <text x="${x + 20}" y="${y + 28}" text-anchor="middle" class="seat-label ${lcls}">S${num}</text>
-        `;
+    var pris = occupes.indexOf(num) !== -1 || occupes.indexOf(String(num)) !== -1;
+    var cls = pris ? 'seat-taken' : 'seat-free';
+    var lcls = pris ? 'seat-label-taken' : 'seat-label-free';
+    return '<rect x="' + x + '" y="' + y + '" width="25" height="30" rx="10" class="seat ' + cls + '"/>' +
+        '<text x="' + (x + 12.5) + '" y="' + (y + 20) + '" text-anchor="middle" class="seat-label ' + lcls + '">S' + num + '</text>';
 }
 
 // ─── RESERVATIONS RECENTES ──────────────────────────────
 function afficherReservationsRecentes() {
-    const container = document.getElementById('recent-reservations');
-    const recent = myReservations.slice(-5).reverse();
+    var container = document.getElementById('recent-reservations');
+    var reservations = dashboardData ? (dashboardData.reservations || []) : [];
+    var recent = reservations.slice(0, 5);
 
     if (recent.length === 0) {
-        container.innerHTML = `<p class="text-slate-600 text-xs text-center py-2">Aucune réservation</p>`;
+        container.innerHTML = '<p class="text-slate-600 text-xs text-center py-2">Aucune réservation</p>';
         return;
     }
 
-    container.innerHTML = recent.map(r => `
-            <div class="flex items-center gap-3 py-2 border-b border-[#1e2537] last:border-0">
-                <div class="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                    ${r.user?.prenom?.[0] || '?'}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-white text-xs font-medium truncate">${r.user?.prenom || ''} ${r.user?.nom || ''}</p>
-                    <p class="text-slate-500 text-xs">${r.sieges ? (Array.isArray(r.sieges) ? r.sieges : JSON.parse(r.sieges)).map(s => 'S' + s).join(', ') : r.nombre_place + ' place(s)'}</p>
-                </div>
-                <span class="text-xs font-bold text-blue-400">${r.prix_total} MAD</span>
-            </div>
-        `).join('');
+    var html = '';
+    for (var i = 0; i < recent.length; i++) {
+        var r = recent[i];
+        var initial = (r.user && r.user.prenom) ? r.user.prenom[0] : '?';
+        var fullName = ((r.user && r.user.prenom) || '') + ' ' + ((r.user && r.user.nom) || '');
+
+        var siegesText = '';
+        if (r.sieges) {
+            var siegesArr = Array.isArray(r.sieges) ? r.sieges : JSON.parse(r.sieges);
+            siegesText = siegesArr.map(function (s) { return 'S' + s; }).join(', ');
+        } else {
+            siegesText = r.nombre_place + ' place(s)';
+        }
+
+        html +=
+            '<div class="flex items-center gap-3 py-2 border-b border-[#1e2537] last:border-0">' +
+            '<div class="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">' +
+            initial +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+            '<p class="text-white text-xs font-medium truncate">' + fullName + '</p>' +
+            '<p class="text-slate-500 text-xs">' + siegesText + '</p>' +
+            '</div>' +
+            '<span class="text-xs font-bold text-blue-400">' + r.prix_total + ' MAD</span>' +
+            '</div>';
+    }
+    container.innerHTML = html;
 }
 
-// ─── AJOUTER TAXI ───────────────────────────────────────
+// ─── AJOUTER TAXI (driver endpoint) ────────────────────
 async function ajouterTaxi() {
-    const formData = new FormData();
+    var formData = new FormData();
     formData.append('matricule', document.getElementById('taxi-matricule').value);
     formData.append('capacite', document.getElementById('taxi-capacite').value);
-    formData.append('statuts', document.getElementById('taxi-statut').value);
 
-    const imageFile = document.getElementById('taxi-image').files[0];
-    if (imageFile) formData.append('image', imageFile);
+    var imageFile = document.getElementById('taxi-image').files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
 
-    const errEl = document.getElementById('modal-error');
+    var errEl = document.getElementById('modal-error');
     errEl.classList.add('hidden');
 
     try {
-        await axios.post(`${BASE_URL}/admin/taxis`, formData, {
+        // Use the driver endpoint — driver_id is set automatically server-side
+        await axios.post(BASE_URL + '/driver/taxi', formData, {
             headers: {
-                ...headers,
+                'Authorization': 'Bearer ' + token,
                 'Content-Type': 'multipart/form-data',
             }
         });
         closeModal('modal-add-taxi');
         afficherToast('✅ Taxi ajouté avec succès !', 'emerald');
-        await loadTaxis();
+        await loadDashboard();
     } catch (e) {
-        const msg = e.response?.data?.message ||
-            Object.values(e.response?.data?.errors || {}).flat().join(' | ') ||
-            'Erreur';
+        var msg = '';
+        if (e.response && e.response.data) {
+            if (e.response.data.errors) {
+                var allErrors = [];
+                var errObj = e.response.data.errors;
+                for (var key in errObj) {
+                    if (errObj.hasOwnProperty(key)) {
+                        allErrors = allErrors.concat(errObj[key]);
+                    }
+                }
+                msg = allErrors.join(' | ');
+            } else {
+                msg = e.response.data.message || 'Erreur lors de la création du taxi.';
+            }
+        } else {
+            msg = 'Erreur réseau.';
+        }
         errEl.innerText = msg;
         errEl.classList.remove('hidden');
     }
 }
 
 // ─── STATUS TOGGLE ──────────────────────────────────────
-async function toggleStatus() {
+function toggleStatus() {
     driverStatus = !driverStatus;
-    const dot = document.getElementById('status-dot');
-    const text = document.getElementById('status-text');
-    const toggle = document.getElementById('status-toggle');
-    const thumb = document.getElementById('toggle-thumb');
+    var dot = document.getElementById('status-dot');
+    var text = document.getElementById('status-text');
+    var toggle = document.getElementById('status-toggle');
+    var thumb = document.getElementById('toggle-thumb');
 
     if (driverStatus) {
         dot.style.background = '#16a34a';
@@ -380,22 +437,23 @@ async function toggleStatus() {
 }
 
 // ─── TOAST ──────────────────────────────────────────────
-function afficherToast(msg, color = 'blue') {
-    const colors = {
+function afficherToast(msg, color) {
+    color = color || 'blue';
+    var colors = {
         blue: 'bg-blue-600',
         emerald: 'bg-emerald-600',
         red: 'bg-red-600',
         amber: 'bg-amber-600',
     };
-    const toast = document.createElement('div');
-    toast.className = `slide-in ${colors[color] || colors.blue} text-white px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 max-w-xs`;
+    var toast = document.createElement('div');
+    toast.className = 'slide-in ' + (colors[color] || colors.blue) + ' text-white px-4 py-3 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 max-w-xs';
     toast.innerHTML = msg;
     document.getElementById('toast-container').appendChild(toast);
-    setTimeout(() => {
+    setTimeout(function () {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100%)';
         toast.style.transition = 'all 0.3s';
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(function () { toast.remove(); }, 300);
     }, 4000);
 }
 
@@ -405,12 +463,13 @@ function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
 // ─── LOGOUT ─────────────────────────────────────────────
 async function logout() {
-    try { await axios.post(`${BASE_URL}/logout`, {}, { headers }); } catch (e) { }
+    try { await axios.post(BASE_URL + '/logout', {}, { headers: headers }); } catch (e) { }
     localStorage.removeItem('api_token');
     localStorage.removeItem('user');
     window.location.href = '/login';
 }
 
-// ─── AUTO REFRESH ───────────────────────────────────────
-loadAll();
-setInterval(loadAll, 30000);
+// ─── BOOT ───────────────────────────────────────────────
+initReverb();
+loadDashboard();
+setInterval(loadDashboard, 30000);
