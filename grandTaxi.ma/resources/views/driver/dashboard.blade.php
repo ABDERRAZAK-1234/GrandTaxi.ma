@@ -81,7 +81,7 @@
                     <i class="fas fa-taxi text-blue-400 text-sm"></i>
                 </div>
                 <p class="text-2xl font-bold text-white" id="stat-taxis">--</p>
-                <p class="text-xs text-slate-500 mt-1">Mes taxis</p>
+                <p class="text-xs text-slate-500 mt-1">Mon taxi</p>
             </div>
             <div class="bg-[#161b27] border border-[#1e2537] rounded-2xl p-5">
                 <div class="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
@@ -113,7 +113,7 @@
 
                 {{-- Header taxis --}}
                 <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-bold text-white">Mes taxis</h2>
+                    <h2 class="text-lg font-bold text-white">Mon taxi</h2>
                     <button onclick="openModal('modal-add-taxi')"
                         class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
                         <i class="fas fa-plus"></i> Ajouter un taxi
@@ -208,29 +208,20 @@
                     <input type="text" id="taxi-matricule" placeholder="123-A-45"
                         class="w-full bg-[#0f1117] border border-[#1e2537] rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500">
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Capacité</label>
-                        <select id="taxi-capacite"
-                            class="w-full bg-[#0f1117] border border-[#1e2537] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
-                            <option value="4">4 places</option>
-                            <option value="5">5 places</option>
-                            <option value="6" selected>6 places</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Statut</label>
-                        <select id="taxi-statut"
-                            class="w-full bg-[#0f1117] border border-[#1e2537] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
-                            <option value="available">Disponible</option>
-                            <option value="unavailable">Indisponible</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Capacité</label>
+                    <select id="taxi-capacite"
+                        class="w-full bg-[#0f1117] border border-[#1e2537] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                        <option value="4">4 places</option>
+                        <option value="5">5 places</option>
+                        <option value="6" selected>6 places</option>
+                    </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Photo du taxi</label>
-                    <input type="file" id="taxi-image" accept="image/*"
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Photo du taxi <span class="text-red-400">*</span></label>
+                    <input type="file" id="taxi-image" accept="image/jpeg,image/png,image/jpg,image/webp" required
                         class="w-full bg-[#0f1117] border border-[#1e2537] rounded-xl px-4 py-2.5 text-sm text-slate-400 focus:outline-none focus:border-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:text-xs file:font-semibold">
+                    <p class="text-xs text-slate-600 mt-1">Formats acceptés : jpeg, png, jpg, webp. Max 2 Mo.</p>
                 </div>
                 <div id="modal-error" class="hidden bg-red-900/40 border border-red-800 text-red-300 rounded-xl p-3 text-xs"></div>
                 <button onclick="ajouterTaxi()"
@@ -241,6 +232,14 @@
         </div>
     </div>
 
+{{-- Inject server-side config for Reverb/Pusher into JS --}}
+<script>
+    window.REVERB_CONFIG = {
+        key:  "{{ env('REVERB_APP_KEY', '') }}",
+        host: "{{ env('REVERB_HOST', 'localhost') }}",
+        port: {{ env('REVERB_PORT', 8080) }},
+    };
+</script>
 <script src="{{ asset('js/driver.js') }}"></script>
 
 </body>
