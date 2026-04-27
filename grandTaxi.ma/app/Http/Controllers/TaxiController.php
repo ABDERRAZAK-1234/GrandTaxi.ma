@@ -40,6 +40,7 @@ class TaxiController extends Controller
 
 
             $validated['statuts'] = $validated['statuts'] ?? 'available';
+            $validated['queue_joined_at'] = now();
 
             $taxi = Taxi::create($validated);
             $taxi->load(['driver', 'trajet']);
@@ -71,6 +72,7 @@ class TaxiController extends Controller
             $validated['driver_id'] = $request->user()->id;
 
             $validated['statuts'] = 'available';
+            $validated['queue_joined_at'] = now();
 
             $taxi = Taxi::create($validated);
             $taxi->load(['driver', 'trajet']);
@@ -124,23 +126,41 @@ class TaxiController extends Controller
     }
 
 
-    public function parTrajet(Trajet $trajet)
-    {
-        $taxis = Taxi::where('trajet_id', $trajet->id)
-            ->whereIn('statuts', ['available', 'reserved'])
-            ->get()
-            ->map(function ($taxi) {
-                $placesReservees = Reservation::where('taxi_id', $taxi->id)
-                    ->where('statut', 'confirmed')
-                    ->sum('nombre_place');
+public function parTrajet(Trajet $trajet)
+{
+    $taxis = Taxi::where('trajet_id', $trajet->id)
+        ->whereIn('statuts', ['available', 'reserved'])
+        ->orderBy('queue_joined_at', 'asc')
+        ->orderBy('id', 'asc')
+        ->get()
+        ->map(function ($taxi) use ($trajet) {
+            $placesReservees = Reservation::where('taxi_id', $taxi->id)
+                ->where('trajet_id', $trajet->id)
+                ->where('statut', 'confirmed')
+                ->sum('nombre_place');
 
-                $taxi->places_reservees = $placesReservees;
-                $taxi->places_restantes = $taxi->capacite - $placesReservees;
-                return $taxi;
-            });
+            $taxi->places_reservees  = $placesReservees;
+            $taxi->places_restantes  = $taxi->capacite - $placesReservees;
+            return $taxi;
+        })
+        ->filter(fn($t) => $t->places_restantes > 0)
+        ->values();
 
-        return response()->json($taxis);
-    }
+    // ─── Compute is_active_in_queue dynamically ───────────
+    $activeFound = false;
+    $taxis = $taxis->map(function ($taxi) use (&$activeFound) {
+        if (!$activeFound) {
+            $taxi->is_active_in_queue = true;
+            $activeFound = true;
+        } else {
+            $taxi->is_active_in_queue = false;
+        }
+        return $taxi;
+    });
+    // ──────────────────────────────────────────────────────
+
+    return response()->json($taxis->values());
+}
 
 
     public function siegesOccupes(Taxi $taxi)
