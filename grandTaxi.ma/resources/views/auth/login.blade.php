@@ -6,38 +6,48 @@
     <title>Connexion — GrandTaxi.ma</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('css/grandtaxi.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-yellow-50 min-h-screen flex items-center justify-center">
+<body class="min-h-screen flex items-center justify-center py-8" style="background: var(--gt-bg-light);">
 
 <div class="max-w-md w-full mx-4">
+
+    {{-- Logo --}}
     <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-yellow-500">🚕 GrandTaxi.ma</h1>
-        <p class="text-gray-500 mt-2">Connectez-vous à votre compte</p>
+        <div class="inline-flex items-center gap-2 mb-3">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center gt-gradient shadow-lg">
+                <i class="fas fa-taxi text-white text-lg"></i>
+            </div>
+        </div>
+        <h1 class="text-2xl font-extrabold" style="color: var(--gt-text);">
+            Grand<span style="color: var(--gt-red);">Taxi</span>.ma
+        </h1>
+        <p class="mt-1" style="color: var(--gt-text-muted);">Connectez-vous à votre compte</p>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-lg p-8">
-        <div id="error-msg" class="hidden bg-red-50 border border-red-300 text-red-700 rounded-lg p-3 mb-4 text-sm"></div>
+    {{-- Card --}}
+    <div class="gt-card p-8">
+
+        <div id="error-msg" class="hidden gt-alert gt-alert-error mb-4 text-sm"></div>
 
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email" placeholder="votre@email.com"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <label class="gt-label">Email</label>
+                <input type="email" id="email" placeholder="votre@email.com" class="gt-input">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                <input type="password" id="password" placeholder="••••••••"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <label class="gt-label">Mot de passe</label>
+                <input type="password" id="password" placeholder="••••••••" class="gt-input">
             </div>
-            <button onclick="login()"
-                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg transition">
+            <button onclick="login()" class="gt-btn gt-btn-primary gt-btn-full gt-btn-lg">
                 Se connecter
             </button>
         </div>
 
-        <p class="text-center text-sm text-gray-500 mt-4">
+        <p class="text-center text-sm mt-4" style="color: var(--gt-text-muted);">
             Pas encore de compte ?
-            <a href="/register" class="text-yellow-500 font-semibold hover:underline">S'inscrire</a>
+            <a href="/register" class="font-semibold hover:underline" style="color: var(--gt-red);">S'inscrire</a>
         </p>
     </div>
 </div>
