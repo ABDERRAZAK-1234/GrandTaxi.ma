@@ -6,124 +6,131 @@
     <title>Inscription — GrandTaxi.ma</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('css/grandtaxi.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-
-<body class="bg-yellow-50 min-h-screen flex items-center justify-center py-8">
+<body class="min-h-screen flex items-center justify-center py-8" style="background: var(--gt-bg-light);">
 
 <div class="max-w-md w-full mx-4">
 
+    {{-- Logo --}}
     <div class="text-center mb-8">
-        <h1 class="text-4xl font-bold text-yellow-500">🚕 GrandTaxi.ma</h1>
-        <p class="text-gray-500 mt-2" id="subtitle">Créez votre compte</p>
+        <div class="inline-flex items-center gap-2 mb-3">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center gt-gradient shadow-lg">
+                <i class="fas fa-taxi text-white text-lg"></i>
+            </div>
+        </div>
+        <h1 class="text-2xl font-extrabold" style="color: var(--gt-text);">
+            Grand<span style="color: var(--gt-red);">Taxi</span>.ma
+        </h1>
+        <p class="mt-1" style="color: var(--gt-text-muted);" id="subtitle">Créez votre compte</p>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-lg p-8">
+    {{-- Card --}}
+    <div class="gt-card p-8">
 
-        <!-- Role Badge -->
-        <div id="role-badge" class="flex items-center gap-2 mb-6 p-3 rounded-xl bg-yellow-100 border border-yellow-200">
+        {{-- Role Badge --}}
+        <div id="role-badge" class="flex items-center gap-3 mb-6 p-3 rounded-xl" style="background: var(--gt-red-light); border: 1px solid rgba(193,39,45,0.2);">
             <span id="role-icon" class="text-xl"></span>
-            <div>
-                <p id="role-text" class="text-sm font-bold text-yellow-700"></p>
-                <p id="role-sub" class="text-xs text-yellow-500"></p>
+            <div class="flex-1">
+                <p id="role-text" class="text-sm font-bold" style="color: var(--gt-red);"></p>
+                <p id="role-sub" class="text-xs" style="color: var(--gt-text-muted);"></p>
             </div>
-            <a href="/" class="ml-auto text-xs text-yellow-600 hover:underline">Changer</a>
+            <a href="/" class="text-xs font-semibold hover:underline" style="color: var(--gt-red);">Changer</a>
         </div>
 
-        <div id="error-msg" class="hidden bg-red-50 border border-red-300 text-red-700 rounded-lg p-3 mb-4 text-sm whitespace-pre-line"></div>
-        <div id="success-msg" class="hidden bg-green-50 border border-green-300 text-green-700 rounded-lg p-3 mb-4 text-sm"></div>
+        <div id="error-msg" class="hidden gt-alert gt-alert-error mb-4 text-sm whitespace-pre-line"></div>
+        <div id="success-msg" class="hidden gt-alert gt-alert-success mb-4 text-sm"></div>
 
-        <!-- Champs communs -->
+        {{-- Common fields --}}
         <div class="space-y-4">
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                    <input type="text" id="nom" placeholder="Alami"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">Nom</label>
+                    <input type="text" id="nom" placeholder="Alami" class="gt-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
-                    <input type="text" id="prenom" placeholder="Mohammed"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">Prénom</label>
+                    <input type="text" id="prenom" placeholder="Mohammed" class="gt-input">
                 </div>
             </div>
-
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email" placeholder="votre@email.com"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <label class="gt-label">Email</label>
+                <input type="email" id="email" placeholder="votre@email.com" class="gt-input">
             </div>
-
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                <input type="password" id="password" placeholder="••••••••"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <label class="gt-label">Mot de passe</label>
+                <input type="password" id="password" placeholder="••••••••" class="gt-input">
             </div>
-
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer mot de passe</label>
-                <input type="password" id="password_confirmation" placeholder="••••••••"
-                    class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                <label class="gt-label">Confirmer mot de passe</label>
+                <input type="password" id="password_confirmation" placeholder="••••••••" class="gt-input">
             </div>
         </div>
 
-        <!-- Champs Conducteur -->
+        {{-- Driver fields --}}
         <div id="driver-fields" class="hidden mt-6 space-y-4">
-
             <div class="flex items-center gap-2 my-3">
-                <div class="flex-1 h-px bg-gray-200"></div>
-                <span class="text-xs font-semibold text-gray-400 uppercase">Conducteur</span>
-                <div class="flex-1 h-px bg-gray-200"></div>
+                <div class="flex-1 h-px" style="background: var(--gt-border);"></div>
+                <span class="text-xs font-semibold uppercase" style="color: var(--gt-gold);">Conducteur</span>
+                <div class="flex-1 h-px" style="background: var(--gt-border);"></div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">CNE</label>
-                    <input type="text" id="cne" placeholder="A123456"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">CNE</label>
+                    <input type="text" id="cne" placeholder="A123456" class="gt-input">
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">N° Permis</label>
-                    <input type="text" id="permis" placeholder="12345678"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">N° Permis</label>
+                    <input type="text" id="permis" placeholder="12345678" class="gt-input">
                 </div>
             </div>
 
             <div class="flex items-center gap-2 my-3">
-                <div class="flex-1 h-px bg-gray-200"></div>
-                <span class="text-xs font-semibold text-gray-400 uppercase">Taxi</span>
-                <div class="flex-1 h-px bg-gray-200"></div>
+                <div class="flex-1 h-px" style="background: var(--gt-border);"></div>
+                <span class="text-xs font-semibold uppercase" style="color: var(--gt-gold);">Taxi</span>
+                <div class="flex-1 h-px" style="background: var(--gt-border);"></div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Matricule</label>
-                    <input type="text" id="taxi_matricule" placeholder="123-A-45"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">Matricule</label>
+                    <input type="text" id="taxi_matricule" placeholder="123-A-45" class="gt-input">
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Capacité</label>
-                    <select id="taxi_capacite"
-                        class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400">
+                    <label class="gt-label">Capacité</label>
+                    <select id="taxi_capacite" class="gt-input">
                         <option value="4">4 places</option>
                         <option value="5">5 places</option>
                         <option value="6" selected>6 places</option>
                     </select>
                 </div>
+                
+                <div class="col-span-2 mt-2">
+                    <label class="gt-label">Trajet (Route)</label>
+                    <select id="taxi_trajet" class="gt-input">
+                        <option value="">Sélectionnez un trajet</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="gt-label">Photo du taxi <span style="color: var(--gt-red);">*</span></label>
+                <input type="file" id="taxi_image" accept="image/jpeg,image/png,image/jpg,image/webp" required
+                    class="gt-input text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-white file:text-xs file:font-semibold" style="color: var(--gt-text-muted); --gt-file-bg: var(--gt-red);">
+                <p class="text-xs mt-1" style="color: var(--gt-text-muted);">Formats acceptés : jpeg, png, jpg, webp. Max 2 Mo.</p>
             </div>
         </div>
 
-        <button onclick="register()"
-            class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 rounded-lg transition mt-6">
+        <button onclick="register()" class="gt-btn gt-btn-primary gt-btn-full gt-btn-lg mt-6">
             S'inscrire
         </button>
 
-        <p class="text-center text-sm text-gray-500 mt-4">
+        <p class="text-center text-sm mt-4" style="color: var(--gt-text-muted);">
             Déjà un compte ?
-            <a href="/login" class="text-yellow-500 font-semibold hover:underline">Se connecter</a>
+            <a href="/login" class="font-semibold hover:underline" style="color: var(--gt-red);">Se connecter</a>
         </p>
-
     </div>
 </div>
 
