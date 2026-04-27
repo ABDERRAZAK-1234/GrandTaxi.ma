@@ -14,6 +14,7 @@ class Taxi extends Model
         'driver_id',
         'trajet_id',
         'image',
+        'queue_joined_at',
     ];
 
     /**
