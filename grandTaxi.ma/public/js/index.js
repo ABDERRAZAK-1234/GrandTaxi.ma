@@ -287,6 +287,8 @@ function afficherTaxis(taxis) {
     taxis.forEach((taxi) => {
         const placesRestantes = taxi.places_restantes;
         const isFull = placesRestantes === 0;
+        const isActiveInQueue = taxi.is_active_in_queue;
+        const isDisabled = isFull || !isActiveInQueue;
 
         let placesHTML = '<div class="flex gap-1 mt-1">';
         for (let i = 1; i <= taxi.capacite; i++) {
@@ -294,6 +296,10 @@ function afficherTaxis(taxis) {
             placesHTML += `<div class="w-4 h-4 rounded-sm ${pris ? "bg-red-400" : "bg-green-400"}" title="${pris ? "Occupé" : "Libre"}"></div>`;
         }
         placesHTML += "</div>";
+
+        let buttonText = "Choisir mes sièges";
+        if (isFull) buttonText = "Taxi complet";
+        else if (!isActiveInQueue) buttonText = "En attente (File)";
 
         const card = `
             <div class="gt-card p-6 hover:shadow-xl transition-all duration-300 group ${isFull ? "opacity-60" : ""}">
@@ -327,13 +333,13 @@ function afficherTaxis(taxis) {
                 </div>
                 <button
                     onclick='ouvrirModal(${JSON.stringify(taxi.trajet)}, "${taxi.nomDepart}", "${taxi.nomArrivee}", ${taxi.id})'
-                    ${isFull ? "disabled" : ""}
+                    ${isDisabled ? "disabled" : ""}
                     class="w-full py-3 font-bold rounded-xl transition duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     style="border: 2px solid var(--gt-red); color: var(--gt-red);"
                     onmouseover="if(!this.disabled){this.style.background='var(--gt-red)';this.style.color='white';}"
                     onmouseout="this.style.background='transparent';this.style.color='var(--gt-red)';">
                     <i class="fas fa-chair"></i>
-                    ${isFull ? "Taxi complet" : "Choisir mes sièges"}
+                    ${buttonText}
                 </button>
             </div>
         `;
