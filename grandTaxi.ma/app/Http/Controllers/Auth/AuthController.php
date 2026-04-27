@@ -74,12 +74,13 @@ class AuthController extends Controller
                     }
 
                     Taxi::create([
-                        'matricule' => $request->taxi_matricule,
-                        'capacite'  => $request->taxi_capacite ?? 6,
-                        'statuts'   => 'available',
-                        'driver_id' => $user->id,
-                        'trajet_id' => $request->taxi_trajet,
-                        'image'     => $imagePath,
+                        'matricule'       => $request->taxi_matricule,
+                        'capacite'        => $request->taxi_capacite ?? 6,
+                        'statuts'         => 'available',
+                        'driver_id'       => $user->id,
+                        'trajet_id'       => $request->taxi_trajet,
+                        'image'           => $imagePath,
+                        'queue_joined_at' => now(),
                     ]);
                 }
             }
