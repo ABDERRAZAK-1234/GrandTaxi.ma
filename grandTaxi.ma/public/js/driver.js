@@ -219,6 +219,10 @@ function afficherTaxi() {
         ' class="text-slate-500 hover:text-blue-400 transition-colors flex-shrink-0" title="Voir plan">' +
         '<i class="fas fa-map-marked-alt"></i>' +
         '</button>' +
+        (taxi.trajet ? '<button onclick="reverseTrip()"' +
+        ' class="text-slate-500 hover:text-amber-400 transition-colors flex-shrink-0 ml-2" title="Trajet Retour">' +
+        '<i class="fas fa-exchange-alt"></i>' +
+        '</button>' : '') +
         '</div>' +
         '</div>';
 
@@ -363,6 +367,23 @@ function afficherReservationsRecentes() {
             '</div>';
     }
     container.innerHTML = html;
+}
+
+// ─── TRAJET RETOUR ────────────────────────────────────
+async function reverseTrip() {
+    if (!confirm('Confirmez-vous l\'inversion du trajet ? Votre taxi sera placé en fin de file pour le trajet retour.')) return;
+
+    try {
+        const res = await axios.post(BASE_URL + '/driver/reverse-trip', {}, { headers });
+        afficherToast('✅ ' + res.data.message, 'emerald');
+
+        // Reload dashboard to show new trip
+        await loadDashboard();
+
+    } catch (e) {
+        const msg = e.response?.data?.message || 'Erreur lors de l\'inversion du trajet.';
+        afficherToast('❌ ' + msg, 'red');
+    }
 }
 
 // ─── AJOUTER TAXI (driver endpoint) ────────────────────
