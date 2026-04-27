@@ -46,8 +46,35 @@ class ReservationController extends Controller
 
         $taxi = Taxi::findOrFail($request->taxi_id);
 
+        // Enforce Queue Logic
+        $taxisInQueue = Taxi::where('trajet_id', $trajet->id)
+            ->whereIn('statuts', ['available', 'reserved'])
+            ->orderBy('queue_joined_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $activeTaxiId = null;
+        foreach ($taxisInQueue as $t) {
+            $reserved = Reservation::where('taxi_id', $t->id)
+                ->where('trajet_id', $trajet->id)
+                ->where('statut', 'confirmed')
+                ->sum('nombre_place');
+
+            if (($t->capacite - $reserved) > 0) {
+                $activeTaxiId = $t->id;
+                break;
+            }
+        }
+
+        if ($activeTaxiId && $taxi->id !== $activeTaxiId) {
+            return response()->json([
+                'message' => 'Ce taxi n\'est pas le premier dans la file d\'attente. Vous devez réserver dans le premier taxi disponible.'
+            ], 422);
+        }
+
         // Verifier places disponibles
         $placesReservees = Reservation::where('taxi_id', $taxi->id)
+            ->where('trajet_id', $trajet->id)
             ->where('statut', 'confirmed')
             ->sum('nombre_place');
 
