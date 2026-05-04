@@ -11,6 +11,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ReservationCreated implements ShouldBroadcastNow
 {
+    // traits
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public Reservation $reservation;
@@ -48,7 +49,8 @@ class ReservationCreated implements ShouldBroadcastNow
     {
         $taxi = $this->reservation->taxi;
         $placesReservees = Reservation::where('taxi_id', $taxi->id)
-            ->where('statut', '!=', 'termine')
+            ->where('trajet_id', $this->reservation->trajet_id)
+            ->where('statut', 'confirmed')
             ->sum('nombre_place');
 
         return max(0, $taxi->capacite - $placesReservees);
