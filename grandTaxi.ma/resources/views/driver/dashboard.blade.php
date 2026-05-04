@@ -43,13 +43,13 @@
 
         <div class="flex items-center gap-4">
             {{-- Status toggle --}}
-            <div class="flex items-center gap-2 bg-[#0f1117] border border-[#1e2537] rounded-xl px-3 py-2">
+            {{-- <div class="flex items-center gap-2 bg-[#0f1117] border border-[#1e2537] rounded-xl px-3 py-2">
                 <span class="w-2 h-2 rounded-full pulse" id="status-dot" style="background:#16a34a"></span>
                 <span class="text-xs font-semibold" id="status-text">En service</span>
                 <button onclick="toggleStatus()" class="ml-2 w-10 h-5 rounded-full relative transition-colors duration-200" id="status-toggle" style="background:#16a34a">
                     <span class="absolute right-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-all" id="toggle-thumb"></span>
                 </button>
-            </div>
+            </div> --}}
 
             {{-- Notifications --}}
             <button class="relative text-slate-400 hover:text-white transition-colors">

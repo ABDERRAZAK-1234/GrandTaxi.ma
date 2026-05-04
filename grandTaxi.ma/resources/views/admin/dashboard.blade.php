@@ -119,6 +119,10 @@
                 class="nav-item w-full flex items-center gap-3 px-3 py-2.5 text-left">
                 <i class="fas fa-users w-4 text-center text-gray-400"></i>
                 <span class="text-sm font-medium text-gray-400">Utilisateurs</span>
+                <span id="badge-pending-drivers"
+                    class="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1
+                           rounded-full bg-amber-500 text-black text-[10px] font-bold"
+                    style="display:none">0</span>
             </button>
 
             <button onclick="showTab('paiements')" id="nav-paiements"
@@ -170,7 +174,7 @@
             <div id="tab-dashboard">
 
                 {{-- Stats --}}
-                <div class="grid grid-cols-4 gap-5 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
                     <div class="stat-card p-5">
                         <div class="flex items-center justify-between mb-4">
                             <div class="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center">
@@ -320,6 +324,11 @@
 
             {{-- ══════════════ USERS TAB ══════════════ --}}
             <div id="tab-users" class="hidden">
+
+                {{-- Pending drivers section (rendered by JS) --}}
+                <div id="pending-drivers-section"></div>
+
+                {{-- All users table --}}
                 <div class="card">
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
