@@ -74,18 +74,19 @@ async function loadTab(tab) {
     if (tab === "trajets") await loadTrajets();
     if (tab === "taxis") await loadTaxis();
     if (tab === "villes") await loadVilles();
-    if (tab === "users") await loadUsers();
+    if (tab === "users") { await loadPendingDrivers(); await loadUsers(); }
     if (tab === "paiements") await loadPaiements();
 }
 
 // ─── DASHBOARD--
 async function loadDashboard() {
     try {
-        const [resResa, resTaxis, resUsers, resPaiements] = await Promise.all([
+        const [resResa, resTaxis, resUsers, resPaiements, resVilles] = await Promise.all([
             axios.get(`${BASE_URL}/admin/reservations`, { headers }),
             axios.get(`${BASE_URL}/taxis`, { headers }),
             axios.get(`${BASE_URL}/admin/users`, { headers }),
             axios.get(`${BASE_URL}/admin/paiements`, { headers }),
+            axios.get(`${BASE_URL}/villes`, { headers }),
         ]);
 
         const reservations = resResa.data;
@@ -110,6 +111,10 @@ async function loadDashboard() {
             reservations.length;
 
         // Recent reservations
+        const villes = resVilles.data;
+        const villeMap = {};
+        villes.forEach(v => villeMap[v.id] = v.nom);
+
         const recent = reservations.slice(-5).reverse();
         const html = recent.length
             ? recent
@@ -118,9 +123,9 @@ async function loadDashboard() {
                 <div class="table-row flex items-center px-2 py-3 gap-4">
                     <span class="text-gray-500 text-xs w-12">#${String(r.id).padStart(4, "0")}</span>
                     <span class="text-white text-xs flex-1">${r.user?.prenom || ""} ${r.user?.nom || ""}</span>
-                    <span class="text-gray-400 text-xs flex-1">${r.trajet?.ville_depart_id || ""} → ${r.trajet?.ville_arrivee_id || ""}</span>
+                    <span class="text-gray-400 text-xs flex-1">${r.trajet ? (villeMap[r.trajet.ville_depart_id] || "") + " → " + (villeMap[r.trajet.ville_arrivee_id] || "") : ""}</span>
                     <span class="text-blue-400 text-xs font-bold">${r.prix_total} MAD</span>
-                    <span class="badge ${r.statut === "confirmed" ? "badge-green" : "badge-red"}">${r.statut}</span>
+                    <span class="badge ${r.statut === "confirmed" ? "badge-green" : r.statut === "completed" ? "badge-blue" : "badge-red"}">${r.statut}</span>
                 </div>
             `,
                   )
@@ -171,7 +176,7 @@ async function loadReservations() {
                     <td class="px-6 py-4 text-xs font-medium text-gray-500">${r.nombre_place} Siège(s)</td>
                     <td class="px-6 py-4 font-bold text-blue-600">${r.prix_total} MAD</td>
                     <td class="px-6 py-4">
-                        <span class="badge ${r.statut === "confirmed" ? "badge-green" : "badge-red"}">
+                        <span class="badge ${r.statut === "confirmed" ? "badge-green" : r.statut === "completed" ? "badge-blue" : "badge-red"}">
                             ${r.statut}
                         </span>
                     </td>
@@ -341,6 +346,116 @@ async function loadVilles() {
     }
 }
 
+// ─── PENDING DRIVERS
+async function loadPendingDrivers() {
+    const container = document.getElementById("pending-drivers-section");
+    if (!container) return;
+
+    try {
+        const res = await axios.get(`${BASE_URL}/admin/users/pending-drivers`, { headers });
+        const pending = res.data;
+
+        // Update badge on nav
+        const badge = document.getElementById("badge-pending-drivers");
+        if (badge) {
+            badge.innerText = pending.length;
+            badge.style.display = pending.length > 0 ? "inline-flex" : "none";
+        }
+
+        if (pending.length === 0) {
+            container.innerHTML = `
+                <div class="card p-5 mb-6">
+                    <h3 class="text-sm font-semibold text-gray-300 mb-1 flex items-center gap-2">
+                        <i class="fas fa-user-clock text-amber-400"></i>
+                        Conducteurs en attente d'approbation
+                    </h3>
+                    <p class="text-gray-600 text-xs mt-3">Aucun conducteur en attente.</p>
+                </div>`;
+            return;
+        }
+
+        const rows = pending.map(u => `
+            <tr class="table-row">
+                <td class="px-5 py-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-amber-600/30 rounded-full flex items-center justify-center text-xs font-bold text-amber-300">
+                            ${u.prenom ? u.prenom[0].toUpperCase() : "?"}
+                        </div>
+                        <div>
+                            <p class="text-white text-xs font-semibold">${u.prenom || ""} ${u.nom || ""}</p>
+                            <p class="text-gray-500 text-[11px]">${u.email}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-5 py-3 text-gray-400 text-xs">
+                    ${u.driver_profile ? `CNE: ${u.driver_profile.cne}<br>Permis: ${u.driver_profile.permis}` : '<span class="text-gray-600">—</span>'}
+                </td>
+                <td class="px-5 py-3 text-gray-500 text-xs">${new Date(u.created_at).toLocaleDateString("fr")}</td>
+                <td class="px-5 py-3 text-right flex gap-2 justify-end">
+                    <button onclick="approveDriver(${u.id})"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 transition text-xs font-semibold">
+                        <i class="fas fa-check"></i> Approuver
+                    </button>
+                    <button onclick="rejectDriver(${u.id})"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/40 transition text-xs font-semibold">
+                        <i class="fas fa-times"></i> Rejeter
+                    </button>
+                </td>
+            </tr>
+        `).join("");
+
+        container.innerHTML = `
+            <div class="card mb-6">
+                <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-800">
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i class="fas fa-user-clock text-amber-400"></i>
+                        Conducteurs en attente d'approbation
+                        <span class="bg-amber-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            ${pending.length}
+                        </span>
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="text-[11px] text-gray-500 uppercase tracking-wider border-b border-gray-800">
+                                <th class="px-5 py-2 text-left">Conducteur</th>
+                                <th class="px-5 py-2 text-left">Documents</th>
+                                <th class="px-5 py-2 text-left">Inscrit le</th>
+                                <th class="px-5 py-2 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>`;
+    } catch (e) {
+        console.error("Erreur loadPendingDrivers:", e);
+    }
+}
+
+async function approveDriver(id) {
+    if (!confirm("Approuver ce conducteur ? Il pourra accéder à son tableau de bord.")) return;
+    try {
+        await axios.patch(`${BASE_URL}/admin/users/${id}/approve`, {}, { headers });
+        await loadPendingDrivers();
+        await loadUsers();
+    } catch (e) {
+        alert(e.response?.data?.message || "Erreur lors de l'approbation");
+    }
+}
+
+async function rejectDriver(id) {
+    if (!confirm("Rejeter ce conducteur ? Son compte sera désactivé.")) return;
+    try {
+        await axios.patch(`${BASE_URL}/admin/users/${id}/reject`, {}, { headers });
+        await loadPendingDrivers();
+        await loadUsers();
+    } catch (e) {
+        alert(e.response?.data?.message || "Erreur lors du rejet");
+    }
+}
+
 // ─── USERS
 async function loadUsers() {
     try {
@@ -354,44 +469,58 @@ async function loadUsers() {
         };
 
         document.getElementById("tbody-users").innerHTML = usersData.map((u) => {
-            const isInactive = u.statut === "inactive" || u.status === "inactive";
+            const isPending  = u.status === "pending";
+            const isInactive = u.status === "inactive";
+
+            // Status badge
+            let statusBadge;
+            if (isPending)       statusBadge = `<span class="badge" style="background:#2d1f00;color:#fbbf24;">En attente</span>`;
+            else if (isInactive) statusBadge = `<span class="badge badge-red">Inactif</span>`;
+            else                 statusBadge = `<span class="badge badge-green">Actif</span>`;
+
+            // Actions column
+            let actions = "";
+            if (u.role !== "admin") {
+                if (isPending) {
+                    actions = `
+                        <button onclick="approveDriver(${u.id})" class="text-emerald-400 hover:text-emerald-300 transition p-2" title="Approuver">
+                            <i class="fas fa-user-check"></i>
+                        </button>
+                        <button onclick="rejectDriver(${u.id})" class="text-red-400 hover:text-red-300 transition p-2" title="Rejeter">
+                            <i class="fas fa-user-slash"></i>
+                        </button>`;
+                } else if (isInactive) {
+                    actions = `<button onclick="unbanUser(${u.id})" class="text-green-400 hover:text-green-300 transition p-2" title="Débannir">
+                                   <i class="fas fa-user-check"></i>
+                               </button>`;
+                } else {
+                    actions = `<button onclick="banUser(${u.id})" class="text-red-400 hover:text-red-300 transition p-2" title="Bannir">
+                                   <i class="fas fa-user-slash"></i>
+                               </button>`;
+                }
+            }
 
             return `
                 <tr class="table-row ${isInactive ? "opacity-60" : ""}">
                     <td class="px-5 py-3">
                         <div class="flex items-center gap-3">
-                            <div class="w-7 h-7 ${isInactive ? "bg-red-900" : "bg-blue-600"} rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                            <div class="w-7 h-7 ${isPending ? "bg-amber-800" : isInactive ? "bg-red-900" : "bg-blue-600"} rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
                                 ${u.prenom ? u.prenom[0].toUpperCase() : "?"}
                             </div>
                             <div>
                                 <p class="text-white text-xs font-medium flex items-center gap-2">
                                     ${u.prenom || ""} ${u.nom || ""}
+                                    ${isPending  ? '<span class="text-[10px] text-amber-400 font-bold uppercase">En attente</span>' : ""}
                                     ${isInactive ? '<span class="text-[10px] text-red-400 font-bold uppercase underline">Banni</span>' : ""}
                                 </p>
-                                ${u.cne ? `<p class="text-gray-500 text-xs">CNE: ${u.cne}</p>` : ""}
                             </div>
                         </div>
                     </td>
                     <td class="px-5 py-3 text-gray-400 text-xs">${u.email}</td>
                     <td class="px-5 py-3"><span class="badge ${roleColors[u.role] || "badge-blue"}">${u.role}</span></td>
-                    <td class="px-5 py-3">
-                        <span class="badge ${isInactive ? "badge-red" : "badge-green"}">
-                            ${isInactive ? "Inactif" : "Actif"}
-                        </span>
-                    </td>
+                    <td class="px-5 py-3">${statusBadge}</td>
                     <td class="px-5 py-3 text-gray-500 text-xs">${new Date(u.created_at).toLocaleDateString("fr")}</td>
-                    <td class="px-5 py-3 text-right">
-                        ${u.role !== "admin" ? `
-                            ${isInactive ?
-                                `<button onclick="unbanUser(${u.id})" class="text-green-400 hover:text-green-300 transition p-2" title="Débannir">
-                                    <i class="fas fa-user-check"></i>
-                                 </button>` :
-                                `<button onclick="banUser(${u.id})" class="text-red-400 hover:text-red-300 transition p-2" title="Bannir">
-                                    <i class="fas fa-user-slash"></i>
-                                 </button>`
-                            }
-                        ` : ""}
-                    </td>
+                    <td class="px-5 py-3 text-right flex gap-1 justify-end">${actions}</td>
                 </tr>
             `;
         }).join("");
@@ -566,4 +695,4 @@ async function logout() {
     window.location.href = "/login";
 }
 
-loadDashboard();
+showTab('dashboard');

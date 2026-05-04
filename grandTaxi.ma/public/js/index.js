@@ -4,7 +4,7 @@ let user = JSON.parse(localStorage.getItem("user") || "null");
 let trajetSelectionne = null;
 let taxiSelectionneId = null;
 
-// ─── POLLING ──────────────────────────────────────────────
+// ─── POLLING 
 let pollingInterval = null;
 
 function startPolling(taxiId) {
@@ -21,7 +21,7 @@ function stopPolling() {
     }
 }
 
-// ─── REVERB ───────────────────────────────────────────────
+// ─── REVERB
 function ecouterTrajet(trajetId, taxiId) {
     if (!window.pusherInstance) return;
 
@@ -31,7 +31,7 @@ function ecouterTrajet(trajetId, taxiId) {
     const channel = window.pusherInstance.subscribe(channelName);
 
     channel.bind("reservation.created", function (data) {
-        console.log("🎉 Siège réservé en temps réel:", data);
+        console.log(" Siège réservé en temps réel:", data);
 
         // Vérifier que c'est le même taxi
         if (data.taxi_id != taxiId) return;
@@ -77,7 +77,7 @@ function arreterEcoute(trajetId) {
     window.pusherInstance.unsubscribe("trajets." + trajetId);
 }
 
-// ─── TOAST ────────────────────────────────────────────────
+// ─── TOAST
 function afficherToast(msg) {
     const toast = document.createElement("div");
     toast.className =
@@ -91,7 +91,7 @@ function afficherToast(msg) {
     }, 4000);
 }
 
-// ─── SIEGES ───────────────────────────────────────────────
+// ─── SIEGES
 const siegesSelectionnes = new Set();
 const siegesPris = new Set();
 
@@ -177,7 +177,7 @@ function resetSieges() {
     siegesPris.clear();
 }
 
-// ─── NAVBAR ───────────────────────────────────────────────
+// ─── NAVBAR
 function initNavbar() {
     if (token && user) {
         document.getElementById("nav-guest").classList.add("hidden");
@@ -200,7 +200,7 @@ async function logout() {
     window.location.href = "/login";
 }
 
-// ─── VILLES ───────────────────────────────────────────────
+// ─── VILLES
 async function chargerVilles() {
     try {
         const res    = await axios.get(`${BASE_URL}/villes`);
@@ -217,7 +217,7 @@ async function chargerVilles() {
     }
 }
 
-// ─── RECHERCHER TRAJETS ───────────────────────────────────
+// ─── RECHERCHER TRAJETS
 async function rechercherTrajets() {
     const villeDepart  = document.getElementById("ville-depart").value;
     const villeArrivee = document.getElementById("ville-arrivee").value;
@@ -279,7 +279,7 @@ async function rechercherTrajets() {
     }
 }
 
-// ─── AFFICHER LES TAXIS ───────────────────────────────────
+// ─── AFFICHER LES TAXIS
 function afficherTaxis(taxis) {
     const grid = document.getElementById("trajets-grid");
     grid.innerHTML = "";
@@ -350,7 +350,7 @@ function afficherTaxis(taxis) {
     document.getElementById("trajets").scrollIntoView({ behavior: "smooth" });
 }
 
-// ─── MODAL ────────────────────────────────────────────────
+// ─── MODAL
 async function ouvrirModal(trajet, nomDepart, nomArrivee, taxiId = null) {
     if (!token) {
         window.location.href = "/login";
@@ -424,14 +424,14 @@ function fermerModal() {
     }
 }
 
-// ─── BAGAGE ───────────────────────────────────────────────
+// ─── BAGAGE
 function toggleBagage() {
     const checked = document.getElementById("bagage").checked;
     document.getElementById("bagage-count").classList.toggle("hidden", !checked);
     updateSiegeUI();
 }
 
-// ─── PAIEMENT ─────────────────────────────────────────────
+// ─── PAIEMENT
 async function initierPaiement() {
     const taxiId    = document.getElementById("select-taxi").value;
     const hasBagage = document.getElementById("bagage").checked;
@@ -475,7 +475,7 @@ async function initierPaiement() {
     }
 }
 
-// ─── HELPERS ──────────────────────────────────────────────
+// ─── HELPERS
 function afficherErreurModal(msg) {
     const el = document.getElementById("modal-error");
     el.innerText = msg;
@@ -490,7 +490,7 @@ function afficherSuccesModal(msg) {
     document.getElementById("modal-error").classList.add("hidden");
 }
 
-// ─── INIT ─────────────────────────────────────────────────
+// ─── INIT
 document.addEventListener("DOMContentLoaded", () => {
     initNavbar();
     chargerVilles();

@@ -72,7 +72,7 @@ async function payerStripe() {
             const reservationId = res.data.reservation.id;
 
             document.getElementById("success-msg").innerText =
-                "✅ Réservation confirmée ! Téléchargement du billet...";
+                "Réservation confirmée ! Téléchargement du billet...";
 
             // Télécharger le billet
             const link = document.createElement("a");
@@ -83,7 +83,7 @@ async function payerStripe() {
             document.body.removeChild(link);
 
             setTimeout(() => {
-                window.location.href = "/mes-reservations";
+                window.location.href = "/index";
             }, 3000);
         } catch (err) {
             console.log("Erreur backend:", err.response?.data);

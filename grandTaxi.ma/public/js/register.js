@@ -69,17 +69,33 @@ async function register() {
         localStorage.setItem("user", JSON.stringify(res.data.user));
         localStorage.removeItem("register_role");
 
-        document.getElementById("success-msg").innerText =
-            "✅ Compte créé avec succès ! Redirection...";
-        document.getElementById("success-msg").classList.remove("hidden");
+        if (role === 'driver') {
+            // Drivers must wait for admin approval — redirect to a pending page
+            document.getElementById("success-msg").innerHTML =
+                `✅ Compte conducteur créé !<br>
+                 <span style="font-size:0.85em; opacity:0.85;">
+                   Votre compte est en attente de validation par un administrateur.
+                   Vous recevrez l'accès à votre tableau de bord une fois approuvé.
+                 </span>`;
+            document.getElementById("success-msg").classList.remove("hidden");
 
-        setTimeout(() => {
-            if (role === 'driver') {
-                window.location.href = '/driver/dashboard';
-            } else {
+            // Disable the submit button so they don't re-submit
+            document.querySelector("button[onclick='register()']") &&
+                (document.querySelector("button[onclick='register()']").disabled = true);
+
+            // After a moment, redirect to login so they see the pending message there
+            setTimeout(() => {
+                window.location.href = '/login?pending=1';
+            }, 4000);
+        } else {
+            document.getElementById("success-msg").innerText =
+                "✅ Compte créé avec succès ! Redirection...";
+            document.getElementById("success-msg").classList.remove("hidden");
+
+            setTimeout(() => {
                 window.location.href = '/index';
-            }
-        }, 1500);
+            }, 1500);
+        }
     } catch (err) {
         const errors = err.response?.data?.errors;
         const msg = errors

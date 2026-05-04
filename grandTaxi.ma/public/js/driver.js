@@ -1,4 +1,3 @@
-
 const BASE_URL = '/api';
 const token = localStorage.getItem('api_token');
 const user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -8,11 +7,49 @@ if (!token || !user || user.role !== 'driver') {
     window.location.href = '/login';
 }
 
+// Pending guard — driver registered but not yet approved by admin
+if (user && user.status === 'pending') {
+    document.body.innerHTML = `
+        <div style="
+            min-height:100vh; background:#0a0f1a; display:flex;
+            align-items:center; justify-content:center; font-family:'Inter',sans-serif;
+        ">
+            <div style="
+                background:#111827; border:1px solid #1e2537; border-radius:1.5rem;
+                padding:3rem 2.5rem; max-width:420px; text-align:center;
+            ">
+                <div style="font-size:3.5rem; margin-bottom:1.25rem;">⏳</div>
+                <h1 style="color:#f8fafc; font-size:1.25rem; font-weight:700; margin-bottom:.75rem;">
+                    Compte en attente d'approbation
+                </h1>
+                <p style="color:#94a3b8; font-size:.875rem; line-height:1.6; margin-bottom:2rem;">
+                    Votre demande d'inscription en tant que conducteur a bien été reçue.
+                    Un administrateur va vérifier vos informations et activer votre compte sous peu.
+                </p>
+                <p style="color:#64748b; font-size:.75rem; margin-bottom:2rem;">
+                    Une fois approuvé, vous pourrez vous connecter et accéder à votre tableau de bord.
+                </p>
+                <button onclick="logoutPending()" style="
+                    background:#1e40af; color:#fff; border:none; border-radius:.75rem;
+                    padding:.75rem 2rem; font-size:.875rem; font-weight:600; cursor:pointer;
+                ">Se déconnecter</button>
+            </div>
+        </div>
+    `;
+    window.logoutPending = function() {
+        localStorage.removeItem('api_token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+    };
+    // Stop executing the rest of driver.js
+    throw new Error('DRIVER_PENDING');
+}
+
 // Dashboard state
 let dashboardData = null;
 let driverStatus = true;
 
-// ─── INIT ───────────────────────────────────────────────
+// ─── INIT
 if (user) {
     var initials = (user.prenom && user.prenom[0]) ? user.prenom[0].toUpperCase() : 'D';
     document.getElementById('driver-avatar').innerText = initials;
@@ -30,7 +67,7 @@ if (user) {
     }
 }
 
-// ─── REVERB ─────────────────────────────────────────────
+// ─── REVERB
 // Reverb config is injected from Blade
 function initReverb() {
     if (typeof Pusher === 'undefined' || !window.REVERB_CONFIG) return;
@@ -47,7 +84,7 @@ function initReverb() {
     });
 
     pusher.connection.bind('connected', () => {
-        console.log('✅ Reverb connecté — Dashboard Conducteur');
+        console.log('Reverb connecté — Dashboard Conducteur');
     });
 
     window._pusher = pusher;
@@ -70,7 +107,7 @@ function ecouterTaxi(trajetId, taxiId) {
     });
 }
 
-// ─── LOAD DASHBOARD (consolidated endpoint) ─────────────
+// ─── LOAD DASHBOARD
 async function loadDashboard() {
     try {
         const res = await axios.get(`${BASE_URL}/driver/dashboard`, { headers });
@@ -141,7 +178,7 @@ async function loadDashboard() {
     }
 }
 
-// ─── AFFICHER TAXI ──────────────────────────────────────
+// ─── AFFICHER TAXI
 function afficherTaxi() {
     const container = document.getElementById('taxis-list');
     const taxi = dashboardData ? dashboardData.taxi : null;
@@ -252,7 +289,7 @@ async function chargerPlacesTaxi(taxi) {
     } catch (e) { /* silent */ }
 }
 
-// ─── AFFICHER TRAJETS ───────────────────────────────────
+// ─── AFFICHER TRAJETS
 async function afficherTrajets() {
     var container = document.getElementById('trajets-list');
     var taxi = dashboardData ? dashboardData.taxi : null;
@@ -289,7 +326,7 @@ async function afficherTrajets() {
     } catch (e) { console.error(e); }
 }
 
-// ─── PLAN SIEGES ────────────────────────────────────────
+// ─── PLAN SIEGES
 async function afficherPlanSieges(taxiId) {
     if (!taxiId) return;
 
@@ -329,7 +366,7 @@ function getSiegeSVG(num, x, y, occupes) {
         '<text x="' + (x + 12.5) + '" y="' + (y + 20) + '" text-anchor="middle" class="seat-label ' + lcls + '">S' + num + '</text>';
 }
 
-// ─── RESERVATIONS RECENTES ──────────────────────────────
+// ─── RESERVATIONS RECENTES
 function afficherReservationsRecentes() {
     var container = document.getElementById('recent-reservations');
     var reservations = dashboardData ? (dashboardData.reservations || []) : [];
@@ -369,7 +406,7 @@ function afficherReservationsRecentes() {
     container.innerHTML = html;
 }
 
-// ─── TRAJET RETOUR ────────────────────────────────────
+// ─── TRAJET RETOUR
 async function reverseTrip() {
     if (!confirm('Confirmez-vous l\'inversion du trajet ? Votre taxi sera placé en fin de file pour le trajet retour.')) return;
 
@@ -386,7 +423,7 @@ async function reverseTrip() {
     }
 }
 
-// ─── AJOUTER TAXI (driver endpoint) ────────────────────
+// ─── AJOUTER TAXI (driver endpoint)
 async function ajouterTaxi() {
     var formData = new FormData();
     formData.append('matricule', document.getElementById('taxi-matricule').value);
@@ -434,30 +471,30 @@ async function ajouterTaxi() {
     }
 }
 
-// ─── STATUS TOGGLE ──────────────────────────────────────
-function toggleStatus() {
-    driverStatus = !driverStatus;
-    var dot = document.getElementById('status-dot');
-    var text = document.getElementById('status-text');
-    var toggle = document.getElementById('status-toggle');
-    var thumb = document.getElementById('toggle-thumb');
+// ─── STATUS TOGGLE 
+// function toggleStatus() {
+//     driverStatus = !driverStatus;
+//     var dot = document.getElementById('status-dot');
+//     var text = document.getElementById('status-text');
+//     var toggle = document.getElementById('status-toggle');
+//     var thumb = document.getElementById('toggle-thumb');
 
-    if (driverStatus) {
-        dot.style.background = '#16a34a';
-        text.innerText = 'En service';
-        toggle.style.background = '#16a34a';
-        thumb.style.right = '2px';
-        thumb.style.left = 'auto';
-    } else {
-        dot.style.background = '#dc2626';
-        text.innerText = 'Hors service';
-        toggle.style.background = '#dc2626';
-        thumb.style.left = '2px';
-        thumb.style.right = 'auto';
-    }
-}
+//     if (driverStatus) {
+//         dot.style.background = '#16a34a';
+//         text.innerText = 'En service';
+//         toggle.style.background = '#16a34a';
+//         thumb.style.right = '2px';
+//         thumb.style.left = 'auto';
+//     } else {
+//         dot.style.background = '#dc2626';
+//         text.innerText = 'Hors service';
+//         toggle.style.background = '#dc2626';
+//         thumb.style.left = '2px';
+//         thumb.style.right = 'auto';
+//     }
+// }
 
-// ─── TOAST ──────────────────────────────────────────────
+// ─── TOAST
 function afficherToast(msg, color) {
     color = color || 'blue';
     var colors = {
@@ -478,11 +515,11 @@ function afficherToast(msg, color) {
     }, 4000);
 }
 
-// ─── MODAL ──────────────────────────────────────────────
+// ─── MODAL
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-// ─── LOGOUT ─────────────────────────────────────────────
+// ─── LOGOUT
 async function logout() {
     try { await axios.post(BASE_URL + '/logout', {}, { headers: headers }); } catch (e) { }
     localStorage.removeItem('api_token');
@@ -490,7 +527,7 @@ async function logout() {
     window.location.href = '/login';
 }
 
-// ─── BOOT ───────────────────────────────────────────────
+// ─── BOOT
 initReverb();
 loadDashboard();
 setInterval(loadDashboard, 30000);
