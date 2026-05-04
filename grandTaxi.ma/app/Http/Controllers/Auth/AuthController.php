@@ -12,11 +12,7 @@ use App\Http\Controllers\Controller;
 
 class AuthController extends Controller
 {
-    /**
-     * Register a new user.
-     * If role is 'driver', also creates a DriverProfile (cne, permis)
-     * and optionally a Taxi (matricule, capacite).
-     */
+
     public function register(Request $request)
     {
 
@@ -33,7 +29,7 @@ class AuthController extends Controller
             $rules['cne']    = 'required|string|unique:driver_profiles,cne';
             $rules['permis'] = 'required|string|unique:driver_profiles,permis';
             $rules['taxi_matricule'] = 'nullable|string|unique:taxis,matricule';
-            $rules['taxi_capacite']  = 'nullable|integer|min:4|max:8';
+            $rules['taxi_capacite']  = 'nullable|integer|min:4|max:6';
             $rules['taxi_trajet']    = 'required_with:taxi_matricule|exists:trajets,id';
             $rules['taxi_image']     = 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048';
         }
@@ -47,6 +43,7 @@ class AuthController extends Controller
             $role = $request->role ?? 'user';
         }
 
+        // transaction
         $user = DB::transaction(function () use ($request, $role) {
 
             // 1) Create the user
@@ -56,6 +53,8 @@ class AuthController extends Controller
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
                 'role'     => $role,
+                // Drivers start as 'pending' 
+                'status'   => ($role === 'driver') ? 'pending' : 'active',
             ]);
 
             // create the DriverProfile
@@ -120,6 +119,13 @@ class AuthController extends Controller
         if ($user->status === 'inactive') {
             return response()->json([
                 'message' => 'Votre compte a été suspendu.'
+            ], 403);
+        }
+
+        if ($user->status === 'pending') {
+            return response()->json([
+                'message' => 'Votre compte est en attente de validation par un administrateur.',
+                'status'  => 'pending',
             ], 403);
         }
 
